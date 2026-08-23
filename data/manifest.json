@@ -1,5 +1,6 @@
 {
   "ships": [
+    "CARAVAN",
     "Orca",
     "SKETHER_QAN_MESSENGER_CLASS_STARSHIP",
     "KIR_QATH_DEFENDER_CLASS_STARSHIP",
@@ -37,18 +38,19 @@
     "WARSPHERE",
     "KOR_CASTE_ORBITAL_CITY",
     "DHOW",
-    "CARAVAN"
+    "CARAVAN",
+    "DOMINION_CLASS_BATTLECRUISER"
   ],
   "commanders": [
-    "One_extra_re_roll",
+    "One_extra_re_roll_",
     "Two_extra_re_rolls",
+    "One_extra_re_roll",
     "Hive_Mind_Influence_re_roll",
     "Hive_Mind_Imperative",
     "Tau_Kor_el_Ld_8_",
     "Tau_Kor_O_Ld_9_",
     "Aun_el_one_extra_re_roll_",
     "Aun_O_two_extra_re_rolls_",
-    "One_extra_re_roll_",
     "Two_extra_re_rolls"
   ]
 }
