@@ -32,6 +32,12 @@ nav::-webkit-scrollbar{display:none;}
 .fg textarea{min-height:80px;resize:vertical;font-family:inherit;}
 .fg input:focus,.fg textarea:focus,.fg select:focus{outline:none;border-color:var(--gold);}
 .frow{display:flex;gap:.52rem;flex-wrap:wrap;}.frow .fg{flex:1;min-width:88px;}
+.seg-grid{width:100%;border-collapse:collapse;font-size:.78rem;}
+.seg-grid th{padding:.25rem .3rem;color:var(--gold);font-size:.68rem;text-transform:uppercase;text-align:center;}
+.seg-grid th:first-child{text-align:left;}
+.seg-grid td{padding:.2rem .25rem;}
+.seg-grid td:first-child{color:var(--txt);font-weight:bold;font-size:.76rem;white-space:nowrap;}
+.seg-grid input{width:100%;padding:.3rem .2rem;background:var(--card);border:1px solid #333;color:var(--txt);border-radius:4px;font-size:.78rem;text-align:center;}
 .btn{padding:.5rem .9rem;border:none;border-radius:4px;cursor:pointer;font-size:.84rem;transition:all .15s;display:inline-flex;align-items:center;gap:.22rem;}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 .bg{background:var(--gold);color:#0a0a0f;font-weight:bold;}.bg:hover:not(:disabled){background:var(--gdim);}
@@ -75,7 +81,8 @@ nav::-webkit-scrollbar{display:none;}
 .var-body{display:block;}
 .var-body.collapsed{display:none;}
 .status{font-size:.8rem;padding:.36rem .58rem;border-radius:4px;background:var(--inp);margin-bottom:.72rem;}
-.toast{position:fixed;bottom:1.1rem;right:1.1rem;padding:.55rem .95rem;border-radius:6px;font-size:.83rem;font-weight:bold;background:var(--card);border:1px solid var(--gdim);color:var(--txt);z-index:999;display:none;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.toast{position:sticky;top:92px;left:0;right:0;z-index:150;background:var(--card);border-bottom:2px solid var(--gold);padding:0 1rem;font-size:.85rem;font-weight:600;color:var(--txt);text-align:center;max-height:0;overflow:hidden;transition:max-height .25s cubic-bezier(.4,0,.2,1),padding .25s;}
+.toast.show{max-height:50px;padding:.65rem 1rem;}
 .toast.show{display:block;}
 .empty{text-align:center;padding:1.8rem 1rem;color:var(--dim);}.empty-icon{font-size:1.75rem;margin-bottom:.42rem;}
 .divider{border:none;border-top:1px solid var(--gdim);margin:.72rem 0;}
@@ -95,7 +102,6 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
   </div>
 </nav>
-<div class="toast" id="toast"></div>
 <div class="tab-bar">
   <button class="ctab active" data-tab="data">📁 Adatkezelés</button>
   <button class="ctab" data-tab="ships">🚀 Hajók</button>
@@ -103,6 +109,7 @@ nav::-webkit-scrollbar{display:none;}
   <button class="ctab" data-tab="refits">🎲 Refitek</button>
   <button class="ctab" data-tab="upgrades">🛠️ Upgrade-ek</button>
 </div>
+<div class="toast" id="toast"></div>
 <div class="wrap">
   <div class="act-status" id="dev-status"></div>
 
@@ -177,8 +184,14 @@ nav::-webkit-scrollbar{display:none;}
 
     <!-- ADVANCED MODE -->
     <hr class="divider" style="border-top-color:var(--pdim);">
-    <button type="button" class="loc-check" id="ship-advanced-toggle" style="border-color:var(--purple);">☐ Advanced mód</button>
-    <div id="advanced-panel" style="display:none;margin-top:.6rem;">
+    <button type="button" class="loc-check checked" id="ship-advanced-toggle" style="border-color:var(--purple);">✅ Advanced mód</button>
+    <button type="button" class="loc-check" id="ship-dreadnought-toggle" style="border-color:var(--red);">☐ Dreadnought (4 szegmens)</button>
+    <p style="color:var(--dim);font-size:.72rem;margin:.35rem 0 0;">Dreadnought módban minden fegyvernél megjelenik egy Szegmens választó (Prow/Starboard/Aft/Port/Spine), és két extra fegyver-elhelyezés (Aft, Spine) valamint egy extra Fire Arc (Rear) is elérhető lesz.</p>
+    <div id="dreadnought-hp-panel" style="display:none;margin-top:.55rem;padding:.6rem;background:var(--inp);border-radius:6px;border:1px solid var(--red);">
+      <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.5rem;">Szegmensenkénti statok <span style="color:var(--dim);">— mintha 4 külön hajó lenne: mindegyik szegmensnek saját, egymástól független Hull Pointja, Shields-je, Armourja és Turretje van csata módban. (A Speed/Turns hajószintű marad, hiszen egybefüggő test mozog.)</span></label>
+      <div id="segment-stat-grid"></div>
+    </div>
+    <div id="advanced-panel" style="display:block;margin-top:.6rem;">
       <p style="color:var(--dim);font-size:.76rem;margin-bottom:.5rem;">Strukturált statok — ha kitöltöd, ezek jelennek meg a leírásban (ebben a sorrendben), a szabad szöveges Statisztikák mező alatt/felett kiegészítésként.</p>
       <div class="frow">
         <div class="fg"><label>Speed</label><input type="text" id="ship-speed" list="dl-ship-speed" placeholder="pl. 20cm"><datalist id="dl-ship-speed"></datalist></div>
@@ -252,7 +265,7 @@ nav::-webkit-scrollbar{display:none;}
     <div id="weapon-list"></div>
 
     <!-- WEAPON GROUPS (advanced) -->
-    <div id="weapon-groups-panel" style="display:none;">
+    <div id="weapon-groups-panel" style="display:block;">
       <hr class="divider" style="border-top-color:var(--pdim);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.35rem;">
         <span style="color:#a07aee;font-weight:bold;font-size:.9rem;">🎯 Fegyver Csoportok (Advanced)</span>
@@ -797,7 +810,7 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function get(id) { return document.getElementById(id); }
 function dl(content, name) { var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'})); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
 function fname(s) { return s.replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_'); }
-function toast(msg, col) { var el=get('toast'); el.textContent=msg; el.style.borderColor=col||'var(--gold)'; el.style.color=col||'var(--gold)'; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(function(){el.classList.remove('show');},3000); }
+function toast(msg, col) { var el=get('toast'); el.textContent=msg; el.style.borderBottomColor=col||'var(--gold)'; el.style.color=col||'var(--gold)'; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(function(){el.classList.remove('show');},3000); }
 
 function expShip(ship) { var d=Object.assign({},ship); delete d._type; dl(JSON.stringify(d,null,2),fname(ship.name)+'.txt'); }
 function expCmd(cmd)   { dl(JSON.stringify(Object.assign({},cmd,{_type:'commander'}),null,2),fname(cmd.name)+'.txt'); }
@@ -971,18 +984,25 @@ get('ship-img-file').addEventListener('change',function(){
 // WEAPON EDITOR
 // ============================================================
 function makeWeaponHtml(w, i) {
-  var locChecks = LOCS.map(function(loc){
+  var locList = curDreadnought ? LOCS.concat(['Aft','Spine']) : LOCS;
+  var locChecks = locList.map(function(loc){
     var checked=(w.locations||[]).indexOf(loc)>=0;
     return '<button type="button" class="loc-check'+(checked?' checked':'')+'" data-i="'+i+'" data-loc="'+loc+'">'+loc+'</button>';
   }).join('');
-  var arcChecks = ARC_OPTIONS.map(function(opt){
+  var arcList = curDreadnought ? ARC_OPTIONS.concat(['Rear']) : ARC_OPTIONS;
+  var arcChecks = arcList.map(function(opt){
     var checked=isArcOptionActive(w.arc,opt);
     return '<button type="button" class="loc-check wpn-arc-check'+(checked?' checked':'')+'" data-i="'+i+'" data-arc-opt="'+esc(opt)+'">'+esc(opt)+'</button>';
   }).join('');
   var isOpt=!!w.optional;
   var isReload=!!w.reloadable;
+  var segmentLabels={'':'— nincs kijelölve —','prow':'Prow szegmens','starboard':'Starboard szegmens','aft':'Aft szegmens','port':'Port szegmens','spine':'Spine (szegmenstől független)'};
+  var segmentPicker = curDreadnought ? '<div class="fg"><label>Szegmens <span style="font-size:.7rem;color:var(--dim);">(melyik szegmens roncsolódása némítja el — Spine esetén egyik sem)</span></label>'
+    +'<select class="wpn-segment" data-i="'+i+'">'
+    +Object.keys(segmentLabels).map(function(s){return '<option value="'+s+'"'+((w.segment||'')===s?' selected':'')+'>'+segmentLabels[s]+'</option>';}).join('')
+    +'</select></div>' : '';
   return '<div class="wge">'
-    +'<div class="wge-hdr"><span class="wge-nm">🔫 '+esc(w.name||'Névtelen')+(isOpt?' <span style="color:var(--orange);font-size:.72rem;">választható</span>':'')+(isReload?' <span style="color:var(--teal);font-size:.72rem;">🔄 újratölthető</span>':'')+'</span>'
+    +'<div class="wge-hdr"><span class="wge-nm">🔫 '+esc(w.name||'Névtelen')+(isOpt?' <span style="color:var(--orange);font-size:.72rem;">választható</span>':'')+(isReload?' <span style="color:var(--teal);font-size:.72rem;">🔄 újratölthető</span>':'')+(w.segment?' <span style="color:var(--red);font-size:.72rem;">🔴 '+esc(segmentLabels[w.segment]||w.segment)+'</span>':'')+'</span>'
     +'<span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wpn-copy" data-i="'+i+'" title="Másolás vágólapra">📋</button><button type="button" class="btn bgh bsm wpn-dup" data-i="'+i+'" title="Duplikálás itt">🔁</button><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></span></div>'
     +'<div class="frow"><div class="fg" style="flex:2;"><label>Armament neve *</label><input type="text" class="wpn-name" list="dl-wpn-name" data-i="'+i+'" value="'+esc(w.name||'')+'"></div>'
     +'<div class="fg" style="flex:1;"><label>Range / Speed</label><input type="text" class="wpn-range" list="dl-wpn-range" data-i="'+i+'" value="'+esc(w.range||'')+'" placeholder="pl. 60cm"></div></div>'
@@ -990,6 +1010,7 @@ function makeWeaponHtml(w, i) {
     +'<div class="loc-checks" style="margin-top:.3rem;">'+arcChecks+'</div></div>'
     +'<div class="fg"><label>Firepower / Str</label><input type="text" class="wpn-fp" list="dl-wpn-fp" data-i="'+i+'" value="'+esc(w.fp||'')+'" placeholder="pl. 4"></div>'
     +'<div class="fg"><label>Elhelyezkedés</label><div class="loc-checks">'+locChecks+'</div></div>'
+    +segmentPicker
     +'<div style="margin-top:.45rem;padding-top:.45rem;border-top:1px solid #2a2a3a;display:flex;gap:.4rem;flex-wrap:wrap;">'
     +'<button type="button" class="loc-check wpn-opt-toggle'+(isOpt?' checked':'')+'" data-i="'+i+'">'+(isOpt?'✅ Választható fegyver':'☐ Választható fegyver')+'</button>'
     +'<button type="button" class="loc-check wpn-reload-toggle'+(isReload?' checked':'')+'" data-i="'+i+'" style="'+(isReload?'border-color:var(--teal);color:var(--teal);':'')+'">'+(isReload?'✅ Újratölthető fegyver':'☐ Újratölthető fegyver')+'</button>'
@@ -1010,6 +1031,7 @@ function bindWeaponEvents(el, arr) {
   el.querySelectorAll('.wpn-name').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].name=inp.value; inp.closest('.wge').querySelector('.wge-nm').textContent='🔫 '+(inp.value||'Névtelen'); }); });
   el.querySelectorAll('.wpn-range').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].range=inp.value; }); });
   el.querySelectorAll('.wpn-fp').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].fp=inp.value; }); });
+  el.querySelectorAll('.wpn-segment').forEach(function(sel){ sel.addEventListener('change',function(){ arr[+sel.dataset.i].segment=sel.value; renderWeaponsInto(el,arr); }); });
   el.querySelectorAll('.wpn-arc').forEach(function(inp){ inp.addEventListener('input',function(){
     arr[+inp.dataset.i].arc=inp.value;
     // keep the checkbox row in sync as the user types manually, without a full rerender (would lose focus)
@@ -1046,7 +1068,7 @@ function pasteWeaponInto(el, arr){
   toast('📥 "'+(clone.name||'Fegyver')+'" beillesztve','var(--green)');
 }
 function renderWeapons() { renderWeaponsInto(get('weapon-list'), curWeapons); }
-get('btn-add-weapon').addEventListener('click',function(){ curWeapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeapons(); });
+get('btn-add-weapon').addEventListener('click',function(){ curWeapons.push({id:gid(),name:'',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeapons(); });
 get('btn-paste-weapon').addEventListener('click',function(){ pasteWeaponInto(get('weapon-list'), curWeapons); });
 get('btn-detect-reloadable').addEventListener('click',autoDetectReloadableGlobal);
 
@@ -1219,7 +1241,7 @@ function renderVariants() {
   el.querySelectorAll('.var-pts').forEach(function(inp){ inp.addEventListener('change',function(){ curVariants[+inp.dataset.vi].points=parseInt(inp.value)||0; }); });
   el.querySelectorAll('.var-hits').forEach(function(inp){ inp.addEventListener('change',function(){ curVariants[+inp.dataset.vi].hits=parseInt(inp.value)||8; }); });
   el.querySelectorAll('.var-stats').forEach(function(inp){ inp.addEventListener('input',function(){ curVariants[+inp.dataset.vi].stats=inp.value; }); });
-  el.querySelectorAll('.var-add-wpn').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; curVariants[vi].weapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeaponsInto(get('var-wpn-list-'+vi),curVariants[vi].weapons); }); });
+  el.querySelectorAll('.var-add-wpn').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; curVariants[vi].weapons.push({id:gid(),name:'',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeaponsInto(get('var-wpn-list-'+vi),curVariants[vi].weapons); }); });
   el.querySelectorAll('.var-paste-wpn').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; pasteWeaponInto(get('var-wpn-list-'+vi),curVariants[vi].weapons); }); });
   el.querySelectorAll('.var-add-wg').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; curVariants[vi].wargear.push({id:gid(),name:'Új wargear',pts:0,desc:'',max:1}); renderWgInto(get('var-wg-list-'+vi),curVariants[vi].wargear); }); });
   el.querySelectorAll('.var-collapse-btn').forEach(function(btn){ btn.addEventListener('click',function(){ var body=get('var-body-'+btn.dataset.vi); var collapsed=body.classList.toggle('collapsed'); btn.textContent=collapsed?'▼ Kibont':'▲ Összecsuk'; }); });
@@ -1256,7 +1278,7 @@ function bindWGroupEvents(el){
   el.querySelectorAll('.wgrp-limit').forEach(function(inp){inp.addEventListener('change',function(){curWeaponGroups[+inp.dataset.gi].limit=parseInt(inp.value)||1;renderWGroups();});});
   el.querySelectorAll('.wgrp-add-wpn').forEach(function(btn){btn.addEventListener('click',function(){
     var gi=+btn.dataset.gi;
-    curWeaponGroups[gi].weapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false});
+    curWeaponGroups[gi].weapons.push({id:gid(),name:'',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false});
     renderWGroups();
   });});
   el.querySelectorAll('.wgrp-paste-wpn').forEach(function(btn){btn.addEventListener('click',function(){
@@ -1271,7 +1293,8 @@ get('btn-add-wgroup').addEventListener('click',function(){ curWeaponGroups.push(
 // SHIP FORM
 // ============================================================
 var curUnofficial=false;
-var curAdvanced=false;
+var curAdvanced=true;
+var curDreadnought=false;
 get('ship-unofficial-toggle').addEventListener('click',function(){
   curUnofficial=!curUnofficial;
   this.classList.toggle('checked',curUnofficial);
@@ -1285,6 +1308,44 @@ get('ship-advanced-toggle').addEventListener('click',function(){
   get('advanced-panel').style.display=curAdvanced?'block':'none';
   get('weapon-groups-panel').style.display=curAdvanced?'block':'none';
 });
+var SEG_STAT_FIELDS=[['hits','Hits'],['shields','Shields'],['armour','Armour'],['turret','Turret']];
+var SEG_NAMES=['prow','starboard','aft','port'];
+var SEG_LABELS_UI={prow:'Prow',starboard:'Starboard',aft:'Aft',port:'Port'};
+function renderSegmentStatGrid(vals){
+  vals=vals||{};
+  var html='<table class="seg-grid"><thead><tr><th></th>'+SEG_STAT_FIELDS.map(function(f){return '<th>'+f[1]+'</th>';}).join('')+'</tr></thead><tbody>'
+    +SEG_NAMES.map(function(seg){
+      var v=vals[seg]||{};
+      return '<tr><td>'+SEG_LABELS_UI[seg]+'</td>'
+        +SEG_STAT_FIELDS.map(function(f){
+          var val=v[f[0]]!==undefined?v[f[0]]:(f[0]==='hits'?(parseInt(get('ship-hits').value)||8):get('ship-'+f[0])?get('ship-'+f[0]).value:'');
+          return '<td><input type="'+(f[0]==='hits'?'number':'text')+'" id="seg-'+seg+'-'+f[0]+'" value="'+esc(String(val))+'"></td>';
+        }).join('')
+        +'</tr>';
+    }).join('')
+    +'</tbody></table>';
+  get('segment-stat-grid').innerHTML=html;
+}
+function readSegmentStats(){
+  var out={};
+  SEG_NAMES.forEach(function(seg){
+    out[seg]={
+      hits:parseInt(get('seg-'+seg+'-hits').value)||8,
+      shields:get('seg-'+seg+'-shields').value.trim(),
+      armour:get('seg-'+seg+'-armour').value.trim(),
+      turret:get('seg-'+seg+'-turret').value.trim()
+    };
+  });
+  return out;
+}
+get('ship-dreadnought-toggle').addEventListener('click',function(){
+  curDreadnought=!curDreadnought;
+  this.classList.toggle('checked',curDreadnought);
+  this.textContent=curDreadnought?'✅ Dreadnought (4 szegmens)':'☐ Dreadnought (4 szegmens)';
+  get('dreadnought-hp-panel').style.display=curDreadnought?'block':'none';
+  if(curDreadnought){ renderSegmentStatGrid(); } // convenience default: prefill from the ship's overall stats
+  renderWeapons(); // re-render so the new Aft/Spine locations, Rear arc, and segment picker show up
+});
 function clearShipForm() {
   get('edit-ship-id').value='';
   ['ship-name','ship-type','ship-faction','ship-subfaction','ship-points','ship-stats','ship-img-url','ship-package','ship-speed','ship-turns','ship-shields','ship-armour','ship-turret'].forEach(function(id){get(id).value='';});
@@ -1292,11 +1353,13 @@ function clearShipForm() {
   get('quality-slider').value='75'; get('quality-val').textContent='75';
   get('maxdim-slider').value='800'; get('maxdim-val').textContent='800';
   get('ship-form-title').textContent='➕ Új Hajó'; get('btn-save-ship').textContent='💾 Mentés'; get('btn-cancel-ship').style.display='none';
-  curWeapons=[]; curWg=[]; curVariants=[]; curWeaponGroups=[]; curUnofficial=false; curAdvanced=false;
+  curWeapons=[]; curWg=[]; curVariants=[]; curWeaponGroups=[]; curUnofficial=false; curAdvanced=true; curDreadnought=false;
   var ut=get('ship-unofficial-toggle'); ut.classList.remove('checked'); ut.textContent='☐ Unofficial (Community Made)';
   get('ship-package-wrap').style.display='none';
-  var at=get('ship-advanced-toggle'); at.classList.remove('checked'); at.textContent='☐ Advanced mód';
-  get('advanced-panel').style.display='none'; get('weapon-groups-panel').style.display='none';
+  var at=get('ship-advanced-toggle'); at.classList.add('checked'); at.textContent='✅ Advanced mód';
+  get('advanced-panel').style.display='block'; get('weapon-groups-panel').style.display='block';
+  var dt=get('ship-dreadnought-toggle'); dt.classList.remove('checked'); dt.textContent='☐ Dreadnought (4 szegmens)';
+  get('dreadnought-hp-panel').style.display='none';
   renderWeapons(); renderWg(); renderVariants(); renderWGroups();
 }
 function startEditShip(id) {
@@ -1321,6 +1384,19 @@ function startEditShip(id) {
   at.classList.toggle('checked',curAdvanced);
   at.textContent=curAdvanced?'✅ Advanced mód':'☐ Advanced mód';
   get('advanced-panel').style.display=curAdvanced?'block':'none';
+  curDreadnought=!!s.dreadnought;
+  var dt=get('ship-dreadnought-toggle');
+  dt.classList.toggle('checked',curDreadnought);
+  dt.textContent=curDreadnought?'✅ Dreadnought (4 szegmens)':'☐ Dreadnought (4 szegmens)';
+  get('dreadnought-hp-panel').style.display=curDreadnought?'block':'none';
+  if(curDreadnought){
+    var segVals=s.segmentStats;
+    if(!segVals&&s.segmentHits){ // backward-compat: migrate the old HP-only format
+      segVals={};
+      SEG_NAMES.forEach(function(seg){ segVals[seg]={hits:s.segmentHits[seg]||s.hits||8,shields:s.shields||'',armour:s.armour||'',turret:s.turret||''}; });
+    }
+    renderSegmentStatGrid(segVals);
+  }
   get('weapon-groups-panel').style.display=curAdvanced?'block':'none';
   renderWeapons(); renderWg(); renderVariants(); renderWGroups();
   get('ship-form-title').textContent='✏️ '+s.name; get('btn-save-ship').textContent='💾 Mentés'; get('btn-cancel-ship').style.display='inline-flex';
@@ -1331,7 +1407,7 @@ get('btn-save-ship').addEventListener('click',async function(){
   var name=get('ship-name').value.trim(), faction=get('ship-faction').value.trim(), points=parseInt(get('ship-points').value);
   if(!name||!faction||isNaN(points)){toast('❌ Töltsd ki: Név, Frakció, Pontérték','var(--red)');return;}
   if(curUnofficial&&!get('ship-package').value.trim()){toast('❌ Add meg a csomag nevét (Unofficial hajónál kötelező)','var(--red)');return;}
-  var obj={name:name,type:get('ship-type').value.trim(),faction:faction,subfaction:get('ship-subfaction').value.trim(),points:points,hits:parseInt(get('ship-hits').value)||8,stats:get('ship-stats').value,image:get('ship-img-url').value,weapons:JSON.parse(JSON.stringify(curWeapons)),wargear:JSON.parse(JSON.stringify(curWg)),variants:JSON.parse(JSON.stringify(curVariants)),unofficial:curUnofficial,packageName:curUnofficial?get('ship-package').value.trim():'',advanced:curAdvanced,weaponGroups:curAdvanced?JSON.parse(JSON.stringify(curWeaponGroups)):[],speed:curAdvanced?get('ship-speed').value.trim():'',turns:curAdvanced?get('ship-turns').value.trim():'',shields:curAdvanced?get('ship-shields').value.trim():'',armour:curAdvanced?get('ship-armour').value.trim():'',turret:curAdvanced?get('ship-turret').value.trim():''};
+  var obj={name:name,type:get('ship-type').value.trim(),faction:faction,subfaction:get('ship-subfaction').value.trim(),points:points,hits:parseInt(get('ship-hits').value)||8,stats:get('ship-stats').value,image:get('ship-img-url').value,weapons:JSON.parse(JSON.stringify(curWeapons)),wargear:JSON.parse(JSON.stringify(curWg)),variants:JSON.parse(JSON.stringify(curVariants)),unofficial:curUnofficial,packageName:curUnofficial?get('ship-package').value.trim():'',advanced:curAdvanced,dreadnought:curDreadnought,segmentStats:curDreadnought?readSegmentStats():null,weaponGroups:curAdvanced?JSON.parse(JSON.stringify(curWeaponGroups)):[],speed:curAdvanced?get('ship-speed').value.trim():'',turns:curAdvanced?get('ship-turns').value.trim():'',shields:curAdvanced?get('ship-shields').value.trim():'',armour:curAdvanced?get('ship-armour').value.trim():'',turret:curAdvanced?get('ship-turret').value.trim():''};
   var eid=get('edit-ship-id').value;
   var savedShip, ok;
   if(eid){
