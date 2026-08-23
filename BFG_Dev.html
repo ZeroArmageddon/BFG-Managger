@@ -202,10 +202,14 @@ nav::-webkit-scrollbar{display:none;}
       <div id="quality-panel" style="display:none;margin-top:.5rem;padding:.6rem;background:var(--inp);border-radius:5px;border:1px solid #2a2a3a;">
         <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.3rem;">
           🗜️ Tömörítés minősége: <span id="quality-val">75</span>%
-          <span id="quality-size-badge" style="color:var(--teal);font-weight:bold;"></span>
         </label>
         <input type="range" id="quality-slider" min="10" max="100" value="75" style="width:100%;">
-        <p style="font-size:.72rem;color:var(--dim);margin-top:.3rem;">Alacsonyabb érték = kisebb fájl, de gyengébb minőség. Mindig az eredeti feltöltött képből számol újra, nem az előző tömörítésből — így nem romlik tovább minden állításnál.</p>
+        <label style="font-size:.76rem;color:var(--dim);display:block;margin:.6rem 0 .3rem;">
+          📐 Max felbontás (hosszabb oldal): <span id="maxdim-val">800</span>px
+        </label>
+        <input type="range" id="maxdim-slider" min="200" max="1400" step="50" value="800" style="width:100%;">
+        <p style="font-size:.76rem;margin-top:.5rem;">Végeredmény: <span id="quality-size-badge" style="color:var(--teal);font-weight:bold;font-size:.9rem;"></span></p>
+        <p style="font-size:.72rem;color:var(--dim);margin-top:.3rem;">A felbontás csökkentése jellemzően sokkal többet spórol, mint a minőség állítása — egy 400px-es kép a pixelek negyedét tartalmazza egy 800px-eshez képest. Mindkettő mindig az eredeti feltöltött képből számol újra, nem az előző tömörítésből.</p>
       </div>
       <div id="bg-removal-panel" style="display:none;margin-top:.5rem;padding:.6rem;background:var(--inp);border-radius:5px;border:1px solid #2a2a3a;">
         <button type="button" class="loc-check bg-removal-toggle" id="bg-removal-toggle" style="border-color:var(--teal);">☐ Háttér eltávolítása (kísérleti)</button>
@@ -922,13 +926,19 @@ function updateQualityBadge(kb){
 async function applyQualityCompression(){
   if(!compressionSource) return;
   var quality=parseInt(get('quality-slider').value)/100;
-  var result=await compressImage(compressionSource,800,quality);
+  var maxDim=parseInt(get('maxdim-slider').value);
+  var result=await compressImage(compressionSource,maxDim,quality);
   get('ship-img-url').value=result;
   setImagePreview(result,false);
   updateQualityBadge(Math.round(result.length/1024));
 }
 get('quality-slider').addEventListener('input',function(){
   get('quality-val').textContent=this.value;
+  clearTimeout(qualityDebounce);
+  qualityDebounce=setTimeout(applyQualityCompression,150);
+});
+get('maxdim-slider').addEventListener('input',function(){
+  get('maxdim-val').textContent=this.value;
   clearTimeout(qualityDebounce);
   qualityDebounce=setTimeout(applyQualityCompression,150);
 });
@@ -939,15 +949,16 @@ get('ship-img-file').addEventListener('change',function(){
   var r=new FileReader();
   r.onload=async function(e){
     var raw=e.target.result;
-    compressionSource=raw; // slider always recompresses from this original upload
+    compressionSource=raw; // sliders always recompress from this original upload
     setImagePreview(raw);
     var quality=parseInt(get('quality-slider').value)/100;
-    var compressed=await compressImage(raw,800,quality);
+    var maxDim=parseInt(get('maxdim-slider').value);
+    var compressed=await compressImage(raw,maxDim,quality);
     get('ship-img-url').value=compressed;
     setImagePreview(compressed,false);
     var beforeKB=Math.round(raw.length/1024), afterKB=Math.round(compressed.length/1024);
     updateQualityBadge(afterKB);
-    if(beforeKB-afterKB>20) toast('🗜️ Kép automatikusan tömörítve: '+beforeKB+'KB → '+afterKB+'KB — állítsd a csúszkát, ha mást szeretnél','var(--green)');
+    if(beforeKB-afterKB>20) toast('🗜️ Kép automatikusan tömörítve: '+beforeKB+'KB → '+afterKB+'KB — állítsd a csúszkákat, ha mást szeretnél','var(--green)');
   };
   r.readAsDataURL(f);
 });
@@ -1255,6 +1266,8 @@ function clearShipForm() {
   get('edit-ship-id').value='';
   ['ship-name','ship-type','ship-faction','ship-subfaction','ship-points','ship-stats','ship-img-url','ship-package','ship-speed','ship-turns','ship-shields','ship-armour','ship-turret'].forEach(function(id){get(id).value='';});
   get('ship-hits').value='8'; get('ship-img-file').value=''; setImagePreview(''); compressionSource=''; updateQualityBadge();
+  get('quality-slider').value='75'; get('quality-val').textContent='75';
+  get('maxdim-slider').value='800'; get('maxdim-val').textContent='800';
   get('ship-form-title').textContent='➕ Új Hajó'; get('btn-save-ship').textContent='💾 Mentés'; get('btn-cancel-ship').style.display='none';
   curWeapons=[]; curWg=[]; curVariants=[]; curWeaponGroups=[]; curUnofficial=false; curAdvanced=false;
   var ut=get('ship-unofficial-toggle'); ut.classList.remove('checked'); ut.textContent='☐ Unofficial (Community Made)';
