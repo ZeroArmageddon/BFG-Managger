@@ -1,6 +1,9 @@
 {
   "ships": [
-    "CARAVAN",
+    "JOVIAN_CLASS_BATTLECRUISER",
+    "MERCURY_CLASS_BATTLECRUISER",
+    "ARMAGEDDON_CLASS_BATTLECRUISER",
+    "OVERLORD_CLASS_BATTLECRUISER",
     "Orca",
     "SKETHER_QAN_MESSENGER_CLASS_STARSHIP",
     "KIR_QATH_DEFENDER_CLASS_STARSHIP",
@@ -39,11 +42,15 @@
     "KOR_CASTE_ORBITAL_CITY",
     "DHOW",
     "CARAVAN",
-    "DOMINION_CLASS_BATTLECRUISER"
+    "DOMINION_CLASS_BATTLECRUISER",
+    "DICTATOR_CLASS_CRUISER",
+    "DOMINATOR_CLASS_CRUISER",
+    "TYRANT_CLASS_CRUISER",
+    "GOTHIC_CLASS_CRUISER",
+    "LUNAR_CLASS_CRUISER",
+    "ENDEAVOUR_CLASS_LIGHT_CRUISER"
   ],
   "commanders": [
-    "One_extra_re_roll_",
-    "Two_extra_re_rolls",
     "One_extra_re_roll",
     "Hive_Mind_Influence_re_roll",
     "Hive_Mind_Imperative",
