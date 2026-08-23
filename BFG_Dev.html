@@ -199,6 +199,14 @@ nav::-webkit-scrollbar{display:none;}
       <div id="ship-img-prev-wrap" style="display:none;margin-top:.32rem;border-radius:4px;border:1px solid #333;background-image:linear-gradient(45deg,#2a2a35 25%,transparent 25%),linear-gradient(-45deg,#2a2a35 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2a2a35 75%),linear-gradient(-45deg,transparent 75%,#2a2a35 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#1a1a25;">
         <img id="ship-img-prev" style="width:100%;max-height:220px;object-fit:contain;display:block;cursor:default;" title="Ha be van kapcsolva a háttér eltávolítás, kattints egy megmaradt foltra az eltávolításához">
       </div>
+      <div id="quality-panel" style="display:none;margin-top:.5rem;padding:.6rem;background:var(--inp);border-radius:5px;border:1px solid #2a2a3a;">
+        <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.3rem;">
+          🗜️ Tömörítés minősége: <span id="quality-val">75</span>%
+          <span id="quality-size-badge" style="color:var(--teal);font-weight:bold;"></span>
+        </label>
+        <input type="range" id="quality-slider" min="10" max="100" value="75" style="width:100%;">
+        <p style="font-size:.72rem;color:var(--dim);margin-top:.3rem;">Alacsonyabb érték = kisebb fájl, de gyengébb minőség. Mindig az eredeti feltöltött képből számol újra, nem az előző tömörítésből — így nem romlik tovább minden állításnál.</p>
+      </div>
       <div id="bg-removal-panel" style="display:none;margin-top:.5rem;padding:.6rem;background:var(--inp);border-radius:5px;border:1px solid #2a2a3a;">
         <button type="button" class="loc-check bg-removal-toggle" id="bg-removal-toggle" style="border-color:var(--teal);">☐ Háttér eltávolítása (kísérleti)</button>
         <div id="bg-removal-controls" style="display:none;margin-top:.5rem;">
@@ -207,6 +215,10 @@ nav::-webkit-scrollbar{display:none;}
             <span style="font-size:.7rem;">(alacsonyabb = csak a háttérrel majdnem pontosan egyező pixelek tűnnek el, magasabb = távolabbi árnyalatok is)</span>
           </label>
           <input type="range" id="bg-threshold" min="10" max="150" value="45" style="width:100%;">
+          <label style="display:flex;align-items:center;gap:.4rem;margin-top:.6rem;font-size:.78rem;color:var(--txt);cursor:pointer;">
+            <input type="checkbox" id="bg-autocrop-toggle" checked style="width:15px;height:15px;">
+            ✂️ Automatikus körbevágás a tartalomhoz (levágja az üres átlátszó szegélyt)
+          </label>
           <p style="font-size:.72rem;color:var(--dim);margin-top:.35rem;">A háttér színét a kép sarkaiból méri — világos ÉS sötét háttérrel is működik. A körvonalak megállítják a törlést, így a hajón belüli világos/sötét részek biztonságban vannak. <b style="color:var(--teal);">Ha egy elszigetelt folt mégis megmarad valahol a kép belsejében: kattints rá közvetlenül a képen</b>, és csak azt a foltot távolítja el, semmi mást.</p>
         </div>
       </div>
@@ -665,11 +677,55 @@ get('bg-threshold').addEventListener('input',function(){
   clearTimeout(bgThresholdDebounce);
   bgThresholdDebounce=setTimeout(applyBgRemoval,150);
 });
+get('bg-autocrop-toggle').addEventListener('change',function(){ applyBgRemoval(); });
 var bgRemovalCurrent=''; // the live result after auto-removal + any manual spot-clicks
+// Finds the bounding box of all non-transparent pixels and crops the canvas
+// down to just that — after background removal, the leftover transparent
+// margin around the ship art is pure dead space, so this shrinks the file
+// further and makes the image fill ship cards more tightly.
+function cropToContent(dataUrl, padding){
+  padding=padding||2;
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      var canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      var imgData;
+      try{ imgData=ctx.getImageData(0,0,w,h); }
+      catch(e){ resolve(dataUrl); return; }
+      var data=imgData.data;
+      var minX=w,minY=h,maxX=-1,maxY=-1;
+      for(var y=0;y<h;y++){
+        for(var x=0;x<w;x++){
+          if(data[(y*w+x)*4+3]>10){
+            if(x<minX)minX=x; if(x>maxX)maxX=x;
+            if(y<minY)minY=y; if(y>maxY)maxY=y;
+          }
+        }
+      }
+      if(maxX<minX||maxY<minY){ resolve(dataUrl); return; } // fully transparent — nothing to crop to
+      minX=Math.max(0,minX-padding); minY=Math.max(0,minY-padding);
+      maxX=Math.min(w-1,maxX+padding); maxY=Math.min(h-1,maxY+padding);
+      var newW=maxX-minX+1, newH=maxY-minY+1;
+      if(newW===w&&newH===h){ resolve(dataUrl); return; } // already tight, nothing to do
+      var cropCanvas=document.createElement('canvas');
+      cropCanvas.width=newW; cropCanvas.height=newH;
+      cropCanvas.getContext('2d').drawImage(canvas,minX,minY,newW,newH,0,0,newW,newH);
+      resolve(cropCanvas.toDataURL('image/png'));
+    };
+    img.onerror=function(){ resolve(dataUrl); };
+    img.src=dataUrl;
+  });
+}
+
 async function applyBgRemoval(){
   if(!bgRemovalSource) return;
   var threshold=parseInt(get('bg-threshold').value);
   var result=await removeBackgroundFromDataUrl(bgRemovalSource,threshold);
+  if(get('bg-autocrop-toggle').checked){ result=await cropToContent(result); }
   bgRemovalCurrent=result;
   get('ship-img-url').value=result;
   setImagePreview(result,false);
@@ -686,6 +742,7 @@ get('ship-img-prev').addEventListener('click',async function(e){
   var yRatio=(e.clientY-rect.top)/rect.height;
   var threshold=parseInt(get('bg-threshold').value);
   var result=await removeSpotAt(bgRemovalCurrent,threshold,xRatio,yRatio);
+  if(get('bg-autocrop-toggle').checked){ result=await cropToContent(result); }
   bgRemovalCurrent=result;
   get('ship-img-url').value=result;
   setImagePreview(result,false);
@@ -843,8 +900,8 @@ var bgRemovalSource=''; // the un-modified image (before background removal) to 
 
 function setImagePreview(dataOrUrl, resetBgPanel){
   var wrap=get('ship-img-prev-wrap'), p=get('ship-img-prev');
-  if(dataOrUrl){ p.src=dataOrUrl; wrap.style.display='block'; get('bg-removal-panel').style.display='block'; }
-  else{ wrap.style.display='none'; get('bg-removal-panel').style.display='none'; }
+  if(dataOrUrl){ p.src=dataOrUrl; wrap.style.display='block'; get('bg-removal-panel').style.display='block'; get('quality-panel').style.display='block'; }
+  else{ wrap.style.display='none'; get('bg-removal-panel').style.display='none'; get('quality-panel').style.display='none'; }
   if(resetBgPanel!==false){
     bgRemovalSource=dataOrUrl||'';
     get('bg-removal-toggle').classList.remove('checked');
@@ -853,18 +910,44 @@ function setImagePreview(dataOrUrl, resetBgPanel){
   }
 }
 
-get('ship-img-url').addEventListener('input',function(){ setImagePreview(this.value); });
+// The pre-quality-slider source image — the slider always recompresses FROM
+// this, never from its own previous output, so repeated adjustments don't
+// keep degrading the image generation after generation.
+var compressionSource='';
+var compressionSourceKB=0;
+var qualityDebounce=null;
+function updateQualityBadge(kb){
+  get('quality-size-badge').textContent=kb!==undefined?('≈ '+kb+' KB'):'';
+}
+async function applyQualityCompression(){
+  if(!compressionSource) return;
+  var quality=parseInt(get('quality-slider').value)/100;
+  var result=await compressImage(compressionSource,800,quality);
+  get('ship-img-url').value=result;
+  setImagePreview(result,false);
+  updateQualityBadge(Math.round(result.length/1024));
+}
+get('quality-slider').addEventListener('input',function(){
+  get('quality-val').textContent=this.value;
+  clearTimeout(qualityDebounce);
+  qualityDebounce=setTimeout(applyQualityCompression,150);
+});
+
+get('ship-img-url').addEventListener('input',function(){ setImagePreview(this.value); compressionSource=this.value; updateQualityBadge(this.value?Math.round(this.value.length/1024):undefined); });
 get('ship-img-file').addEventListener('change',function(){
   var f=this.files[0]; if(!f) return;
   var r=new FileReader();
   r.onload=async function(e){
     var raw=e.target.result;
+    compressionSource=raw; // slider always recompresses from this original upload
     setImagePreview(raw);
-    var compressed=await compressImage(raw,800,0.75);
+    var quality=parseInt(get('quality-slider').value)/100;
+    var compressed=await compressImage(raw,800,quality);
     get('ship-img-url').value=compressed;
-    setImagePreview(compressed);
+    setImagePreview(compressed,false);
     var beforeKB=Math.round(raw.length/1024), afterKB=Math.round(compressed.length/1024);
-    if(beforeKB-afterKB>20) toast('🗜️ Kép automatikusan tömörítve: '+beforeKB+'KB → '+afterKB+'KB','var(--green)');
+    updateQualityBadge(afterKB);
+    if(beforeKB-afterKB>20) toast('🗜️ Kép automatikusan tömörítve: '+beforeKB+'KB → '+afterKB+'KB — állítsd a csúszkát, ha mást szeretnél','var(--green)');
   };
   r.readAsDataURL(f);
 });
@@ -1171,7 +1254,7 @@ get('ship-advanced-toggle').addEventListener('click',function(){
 function clearShipForm() {
   get('edit-ship-id').value='';
   ['ship-name','ship-type','ship-faction','ship-subfaction','ship-points','ship-stats','ship-img-url','ship-package','ship-speed','ship-turns','ship-shields','ship-armour','ship-turret'].forEach(function(id){get(id).value='';});
-  get('ship-hits').value='8'; get('ship-img-file').value=''; setImagePreview('');
+  get('ship-hits').value='8'; get('ship-img-file').value=''; setImagePreview(''); compressionSource=''; updateQualityBadge();
   get('ship-form-title').textContent='➕ Új Hajó'; get('btn-save-ship').textContent='💾 Mentés'; get('btn-cancel-ship').style.display='none';
   curWeapons=[]; curWg=[]; curVariants=[]; curWeaponGroups=[]; curUnofficial=false; curAdvanced=false;
   var ut=get('ship-unofficial-toggle'); ut.classList.remove('checked'); ut.textContent='☐ Unofficial (Community Made)';
@@ -1185,7 +1268,7 @@ function startEditShip(id) {
   get('edit-ship-id').value=s.id; get('ship-name').value=s.name; get('ship-type').value=s.type||'';
   get('ship-faction').value=s.faction||''; get('ship-subfaction').value=s.subfaction||'';
   get('ship-points').value=s.points; get('ship-hits').value=s.hits||8; get('ship-stats').value=s.stats||'';
-  get('ship-img-url').value=s.image||''; setImagePreview(s.image||'');
+  get('ship-img-url').value=s.image||''; setImagePreview(s.image||''); compressionSource=s.image||''; updateQualityBadge(s.image?Math.round(s.image.length/1024):undefined);
   curWeapons=JSON.parse(JSON.stringify(s.weapons||[])); curWg=JSON.parse(JSON.stringify(s.wargear||[]));
   curVariants=JSON.parse(JSON.stringify(s.variants||[]));
   curWeaponGroups=JSON.parse(JSON.stringify(s.weaponGroups||[]));
