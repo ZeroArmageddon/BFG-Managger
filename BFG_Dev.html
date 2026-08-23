@@ -181,13 +181,13 @@ nav::-webkit-scrollbar{display:none;}
     <div id="advanced-panel" style="display:none;margin-top:.6rem;">
       <p style="color:var(--dim);font-size:.76rem;margin-bottom:.5rem;">Strukturált statok — ha kitöltöd, ezek jelennek meg a leírásban (ebben a sorrendben), a szabad szöveges Statisztikák mező alatt/felett kiegészítésként.</p>
       <div class="frow">
-        <div class="fg"><label>Speed</label><input type="text" id="ship-speed" placeholder="pl. 20cm"></div>
-        <div class="fg"><label>Turns</label><input type="text" id="ship-turns" placeholder="pl. 45°"></div>
+        <div class="fg"><label>Speed</label><input type="text" id="ship-speed" list="dl-ship-speed" placeholder="pl. 20cm"><datalist id="dl-ship-speed"></datalist></div>
+        <div class="fg"><label>Turns</label><input type="text" id="ship-turns" list="dl-ship-turns" placeholder="pl. 45°"><datalist id="dl-ship-turns"></datalist></div>
       </div>
       <div class="frow">
-        <div class="fg"><label>Shields</label><input type="text" id="ship-shields" placeholder="pl. 2"></div>
-        <div class="fg"><label>Armour</label><input type="text" id="ship-armour" placeholder="pl. 5+"></div>
-        <div class="fg"><label>Turret</label><input type="text" id="ship-turret" placeholder="pl. 3"></div>
+        <div class="fg"><label>Shields</label><input type="text" id="ship-shields" list="dl-ship-shields" placeholder="pl. 2"><datalist id="dl-ship-shields"></datalist></div>
+        <div class="fg"><label>Armour</label><input type="text" id="ship-armour" list="dl-ship-armour" placeholder="pl. 5+"><datalist id="dl-ship-armour"></datalist></div>
+        <div class="fg"><label>Turret</label><input type="text" id="ship-turret" list="dl-ship-turret" placeholder="pl. 3"><datalist id="dl-ship-turret"></datalist></div>
       </div>
     </div>
 
@@ -225,8 +225,14 @@ nav::-webkit-scrollbar{display:none;}
     <hr class="divider">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;flex-wrap:wrap;gap:.35rem;">
       <span style="color:var(--gold);font-weight:bold;font-size:.9rem;">🔫 Fegyverek (Armament)</span>
-      <button class="btn bgh bsm" id="btn-add-weapon">+ Hozzáadás</button>
+      <div style="display:flex;gap:.35rem;">
+        <button class="btn bgh bsm" id="btn-paste-weapon" title="Vágólapon lévő fegyver beillesztése">📥 Beillesztés</button>
+        <button class="btn bgh bsm" id="btn-add-weapon">+ Hozzáadás</button>
+      </div>
     </div>
+    <datalist id="dl-wpn-name"></datalist>
+    <datalist id="dl-wpn-range"></datalist>
+    <datalist id="dl-wpn-fp"></datalist>
     <div id="weapon-list"></div>
 
     <!-- WEAPON GROUPS (advanced) -->
@@ -878,12 +884,13 @@ function makeWeaponHtml(w, i) {
   var isOpt=!!w.optional;
   var isReload=!!w.reloadable;
   return '<div class="wge">'
-    +'<div class="wge-hdr"><span class="wge-nm">🔫 '+esc(w.name||'Névtelen')+(isOpt?' <span style="color:var(--orange);font-size:.72rem;">választható</span>':'')+(isReload?' <span style="color:var(--teal);font-size:.72rem;">🔄 újratölthető</span>':'')+'</span><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></div>'
-    +'<div class="frow"><div class="fg" style="flex:2;"><label>Armament neve *</label><input type="text" class="wpn-name" data-i="'+i+'" value="'+esc(w.name||'')+'"></div>'
-    +'<div class="fg" style="flex:1;"><label>Range / Speed</label><input type="text" class="wpn-range" data-i="'+i+'" value="'+esc(w.range||'')+'" placeholder="pl. 60cm"></div></div>'
+    +'<div class="wge-hdr"><span class="wge-nm">🔫 '+esc(w.name||'Névtelen')+(isOpt?' <span style="color:var(--orange);font-size:.72rem;">választható</span>':'')+(isReload?' <span style="color:var(--teal);font-size:.72rem;">🔄 újratölthető</span>':'')+'</span>'
+    +'<span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wpn-copy" data-i="'+i+'" title="Másolás vágólapra">📋</button><button type="button" class="btn bgh bsm wpn-dup" data-i="'+i+'" title="Duplikálás itt">🔁</button><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></span></div>'
+    +'<div class="frow"><div class="fg" style="flex:2;"><label>Armament neve *</label><input type="text" class="wpn-name" list="dl-wpn-name" data-i="'+i+'" value="'+esc(w.name||'')+'"></div>'
+    +'<div class="fg" style="flex:1;"><label>Range / Speed</label><input type="text" class="wpn-range" list="dl-wpn-range" data-i="'+i+'" value="'+esc(w.range||'')+'" placeholder="pl. 60cm"></div></div>'
     +'<div class="fg"><label>Fire Arc <span style="font-size:.7rem;color:var(--dim);">(szabadon írható, vagy válassz lent)</span></label><input type="text" class="wpn-arc" data-i="'+i+'" value="'+esc(w.arc||'')+'" placeholder="pl. Front vagy 45°">'
     +'<div class="loc-checks" style="margin-top:.3rem;">'+arcChecks+'</div></div>'
-    +'<div class="fg"><label>Firepower / Str</label><input type="text" class="wpn-fp" data-i="'+i+'" value="'+esc(w.fp||'')+'" placeholder="pl. 4"></div>'
+    +'<div class="fg"><label>Firepower / Str</label><input type="text" class="wpn-fp" list="dl-wpn-fp" data-i="'+i+'" value="'+esc(w.fp||'')+'" placeholder="pl. 4"></div>'
     +'<div class="fg"><label>Elhelyezkedés</label><div class="loc-checks">'+locChecks+'</div></div>'
     +'<div style="margin-top:.45rem;padding-top:.45rem;border-top:1px solid #2a2a3a;display:flex;gap:.4rem;flex-wrap:wrap;">'
     +'<button type="button" class="loc-check wpn-opt-toggle'+(isOpt?' checked':'')+'" data-i="'+i+'">'+(isOpt?'✅ Választható fegyver':'☐ Választható fegyver')+'</button>'
@@ -892,8 +899,16 @@ function makeWeaponHtml(w, i) {
     +(isOpt?'<div class="frow" style="margin-top:.4rem;"><div class="fg" style="flex:1;"><label>Pontérték</label><input type="number" class="wpn-pts" data-i="'+i+'" value="'+(w.pts||0)+'" min="0"></div><div class="fg" style="flex:1;"><label>Max db</label><input type="number" class="wpn-max" data-i="'+i+'" value="'+(w.max||1)+'" min="1"></div></div>':'')
     +'</div>';
 }
+// One shared "clipboard" for copy/paste across ANY weapon list — base ship
+// weapons, any variant's weapons, or any weapon group's weapons. Since they
+// all use this same editor component, a weapon copied from one can be pasted
+// straight into another (e.g. building out a weapon group from an existing
+// weapon) without retyping all its stats.
+var weaponClipboard=null;
 function bindWeaponEvents(el, arr) {
   el.querySelectorAll('[data-wi]').forEach(function(btn){ btn.addEventListener('click',function(){ arr.splice(parseInt(btn.dataset.wi),1); renderWeaponsInto(el,arr); }); });
+  el.querySelectorAll('.wpn-copy').forEach(function(btn){ btn.addEventListener('click',function(){ weaponClipboard=JSON.parse(JSON.stringify(arr[+btn.dataset.i])); toast('📋 "'+(weaponClipboard.name||'Fegyver')+'" vágólapra másolva','var(--teal)'); }); });
+  el.querySelectorAll('.wpn-dup').forEach(function(btn){ var i=+btn.dataset.i; btn.addEventListener('click',function(){ var clone=JSON.parse(JSON.stringify(arr[i])); clone.id=gid(); arr.splice(i+1,0,clone); renderWeaponsInto(el,arr); toast('🔁 Fegyver duplikálva','var(--green)'); }); });
   el.querySelectorAll('.wpn-name').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].name=inp.value; inp.closest('.wge').querySelector('.wge-nm').textContent='🔫 '+(inp.value||'Névtelen'); }); });
   el.querySelectorAll('.wpn-range').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].range=inp.value; }); });
   el.querySelectorAll('.wpn-fp').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].fp=inp.value; }); });
@@ -922,8 +937,19 @@ function renderWeaponsInto(el, arr) {
   el.innerHTML=arr.map(function(w,i){return makeWeaponHtml(w,i);}).join('');
   bindWeaponEvents(el, arr);
 }
+// Pastes the copied weapon into the given array (with a fresh id, so pasting
+// the same clipboard weapon multiple times never collides).
+function pasteWeaponInto(el, arr){
+  if(!weaponClipboard){ toast('⚠️ Nincs vágólapra másolt fegyver. Előbb kattints egy fegyvernél a 📋 gombra.','var(--orange)'); return; }
+  var clone=JSON.parse(JSON.stringify(weaponClipboard));
+  clone.id=gid();
+  arr.push(clone);
+  renderWeaponsInto(el, arr);
+  toast('📥 "'+(clone.name||'Fegyver')+'" beillesztve','var(--green)');
+}
 function renderWeapons() { renderWeaponsInto(get('weapon-list'), curWeapons); }
 get('btn-add-weapon').addEventListener('click',function(){ curWeapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeapons(); });
+get('btn-paste-weapon').addEventListener('click',function(){ pasteWeaponInto(get('weapon-list'), curWeapons); });
 get('btn-detect-reloadable').addEventListener('click',autoDetectReloadableGlobal);
 
 // Scans EVERY saved ship (base weapons + all variants) and marks weapons whose
@@ -1055,7 +1081,7 @@ function renderVariants() {
       +'<div class="fg"><label>Statisztikák</label><textarea class="var-stats" data-vi="'+vi+'" rows="3">'+esc(v.stats||'')+'</textarea></div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.42rem;">'
       +'<span style="color:var(--gold);font-size:.82rem;font-weight:bold;">🔫 Fegyverek</span>'
-      +'<button type="button" class="btn bgh bsm var-add-wpn" data-vi="'+vi+'">+ Fegyver</button></div>'
+      +'<button type="button" class="btn bgh bsm var-paste-wpn" data-vi="'+vi+'" title="Vágólapon lévő fegyver beillesztése">📥</button><button type="button" class="btn bgh bsm var-add-wpn" data-vi="'+vi+'">+ Fegyver</button></div>'
       +'<div class="var-wpn-list" id="var-wpn-list-'+vi+'"></div>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.42rem;margin-top:.52rem;">'
       +'<span style="color:var(--gold);font-size:.82rem;font-weight:bold;">⚙️ Wargear</span>'
@@ -1077,6 +1103,7 @@ function renderVariants() {
   el.querySelectorAll('.var-hits').forEach(function(inp){ inp.addEventListener('change',function(){ curVariants[+inp.dataset.vi].hits=parseInt(inp.value)||8; }); });
   el.querySelectorAll('.var-stats').forEach(function(inp){ inp.addEventListener('input',function(){ curVariants[+inp.dataset.vi].stats=inp.value; }); });
   el.querySelectorAll('.var-add-wpn').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; curVariants[vi].weapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false}); renderWeaponsInto(get('var-wpn-list-'+vi),curVariants[vi].weapons); }); });
+  el.querySelectorAll('.var-paste-wpn').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; pasteWeaponInto(get('var-wpn-list-'+vi),curVariants[vi].weapons); }); });
   el.querySelectorAll('.var-add-wg').forEach(function(btn){ btn.addEventListener('click',function(){ var vi=+btn.dataset.vi; curVariants[vi].wargear.push({id:gid(),name:'Új wargear',pts:0,desc:'',max:1}); renderWgInto(get('var-wg-list-'+vi),curVariants[vi].wargear); }); });
   el.querySelectorAll('.var-collapse-btn').forEach(function(btn){ btn.addEventListener('click',function(){ var body=get('var-body-'+btn.dataset.vi); var collapsed=body.classList.toggle('collapsed'); btn.textContent=collapsed?'▼ Kibont':'▲ Összecsuk'; }); });
 }
@@ -1093,7 +1120,7 @@ function makeWGroupHtml(g, gi){
     +'<button type="button" class="btn bd bsm wgrp-del" data-gi="'+gi+'">Csoport törlése</button></div>'
     +'<div class="frow"><div class="fg" style="flex:2;"><label>Csoport neve * (pl. Prow Weapon)</label><input type="text" class="wgrp-name" data-gi="'+gi+'" value="'+esc(g.name||'')+'"></div>'
     +'<div class="fg" style="flex:1;"><label>Csoport limit (össz db)</label><input type="number" class="wgrp-limit" data-gi="'+gi+'" value="'+(g.limit||1)+'" min="1"></div></div>'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin:.45rem 0;"><span style="color:var(--gold);font-size:.82rem;font-weight:bold;">Lehetséges fegyverek ebben a csoportban</span><button type="button" class="btn bgh bsm wgrp-add-wpn" data-gi="'+gi+'">+ Fegyver</button></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin:.45rem 0;"><span style="color:var(--gold);font-size:.82rem;font-weight:bold;">Lehetséges fegyverek ebben a csoportban</span><span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wgrp-paste-wpn" data-gi="'+gi+'" title="Vágólapon lévő fegyver beillesztése">📥</button><button type="button" class="btn bgh bsm wgrp-add-wpn" data-gi="'+gi+'">+ Fegyver</button></span></div>'
     +'<div class="wgroup-wpn-list" id="wgroup-wpn-list-'+gi+'"></div>'
     +'</div>';
 }
@@ -1114,6 +1141,10 @@ function bindWGroupEvents(el){
     var gi=+btn.dataset.gi;
     curWeaponGroups[gi].weapons.push({id:gid(),name:'Új fegyver',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false});
     renderWGroups();
+  });});
+  el.querySelectorAll('.wgrp-paste-wpn').forEach(function(btn){btn.addEventListener('click',function(){
+    var gi=+btn.dataset.gi;
+    pasteWeaponInto(get('wgroup-wpn-list-'+gi), curWeaponGroups[gi].weapons);
   });});
 }
 get('btn-add-wgroup').addEventListener('click',function(){ curWeaponGroups.push({id:gid(),name:'Új csoport',limit:2,weapons:[]}); renderWGroups(); });
@@ -1256,6 +1287,20 @@ function fillDatalist(id, vals){
   var el=get(id); if(!el) return;
   el.innerHTML=vals.map(function(v){return '<option value="'+esc(v)+'">';}).join('');
 }
+// Collects unique values of a field across EVERY weapon on EVERY ship —
+// base weapons, all variants' weapons, and all weapon groups' weapons —
+// since the same weapon names/ranges/FP values tend to repeat constantly
+// across a roster (e.g. "60cm" or "Weapons Battery").
+function getUniqWeaponField(field){
+  var r=[];
+  function add(v){ if(v&&r.indexOf(v)<0) r.push(v); }
+  ships.forEach(function(s){
+    (s.weapons||[]).forEach(function(w){ add(w[field]); });
+    (s.variants||[]).forEach(function(v){ (v.weapons||[]).forEach(function(w){ add(w[field]); }); });
+    (s.weaponGroups||[]).forEach(function(g){ (g.weapons||[]).forEach(function(w){ add(w[field]); }); });
+  });
+  return r.sort();
+}
 function refreshAutocompleteLists(){
   fillDatalist('dl-ship-type', getUniq(ships,'type'));
   fillDatalist('dl-ship-faction', getUniq(ships,'faction'));
@@ -1265,6 +1310,14 @@ function refreshAutocompleteLists(){
   fillDatalist('dl-refit-faction', getUniq(refits,'faction'));
   fillDatalist('dl-refit-type', getUniq(refits,'type'));
   fillDatalist('dl-upgrade-faction', getUniq(upgrades,'faction'));
+  fillDatalist('dl-wpn-name', getUniqWeaponField('name'));
+  fillDatalist('dl-wpn-range', getUniqWeaponField('range'));
+  fillDatalist('dl-wpn-fp', getUniqWeaponField('fp'));
+  fillDatalist('dl-ship-speed', getUniq(ships,'speed'));
+  fillDatalist('dl-ship-turns', getUniq(ships,'turns'));
+  fillDatalist('dl-ship-shields', getUniq(ships,'shields'));
+  fillDatalist('dl-ship-armour', getUniq(ships,'armour'));
+  fillDatalist('dl-ship-turret', getUniq(ships,'turret'));
 }
 function fillSelect(id, vals, cur) { var el=get(id); el.innerHTML='<option value="">'+el.options[0].text+'</option>'+vals.map(function(v){return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join(''); el.value=cur||''; }
 
