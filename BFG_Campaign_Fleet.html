@@ -197,33 +197,82 @@ function closeModal(id){get(id).classList.remove('open');}
 function getUniq(arr,key){var r=[];arr.forEach(function(x){var v=x[key]||'';if(v&&r.indexOf(v)<0)r.push(v);});return r.sort();}
 function fillSel(id,vals,cur){var el=get(id);var first=el.options[0]?el.options[0].text:'Minden';el.innerHTML='<option value="">'+first+'</option>'+vals.map(function(v){return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join('');el.value=cur||'';}
 
-function loadAll(){
-  try{players=JSON.parse(localStorage.getItem('bfg_campaign_players')||'[]');}catch(e){players=[];}
-  try{planets=JSON.parse(localStorage.getItem('bfg_campaign_planets')||'[]');}catch(e){planets=[];}
-  try{connections=JSON.parse(localStorage.getItem('bfg_campaign_connections')||'[]');}catch(e){connections=[];}
-  try{upgrades=JSON.parse(localStorage.getItem('bfg_campaign_upgrades')||'[]');}catch(e){upgrades=[];}
-  try{refits=JSON.parse(localStorage.getItem('bfg_campaign_refits')||'[]');}catch(e){refits=[];}
-  try{campaignFleets=JSON.parse(localStorage.getItem('bfg_campaign_fleets')||'[]');}catch(e){campaignFleets=[];}
-  try{battleLog=JSON.parse(localStorage.getItem('bfg_campaign_log')||'[]');}catch(e){battleLog=[];}
-  try{ships=JSON.parse(localStorage.getItem('bfg_ships')||'[]');}catch(e){ships=[];}
-  try{commanders=JSON.parse(localStorage.getItem('bfg_commanders')||'[]');}catch(e){commanders=[];}
+// ============================================================
+// INDEXEDDB — same shared data store as the rest of the suite. Vastly bigger
+// quota than localStorage, stores real objects directly, and auto-migrates
+// any pre-existing localStorage data the first time each key is read.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
+}
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+
+async function loadAll(){
+  players=await idbGetMigrated('bfg_campaign_players',[]);
+  planets=await idbGetMigrated('bfg_campaign_planets',[]);
+  connections=await idbGetMigrated('bfg_campaign_connections',[]);
+  upgrades=await idbGetMigrated('bfg_campaign_upgrades',[]);
+  refits=await idbGetMigrated('bfg_campaign_refits',[]);
+  campaignFleets=await idbGetMigrated('bfg_campaign_fleets',[]);
+  battleLog=await idbGetMigrated('bfg_campaign_log',[]);
+  ships=await idbGetMigrated('bfg_ships',[]);
+  commanders=await idbGetMigrated('bfg_commanders',[]);
 }
 function saveCampaign(){
-  localStorage.setItem('bfg_campaign_players',JSON.stringify(players));
-  localStorage.setItem('bfg_campaign_fleets',JSON.stringify(campaignFleets));
+  idbSet('bfg_campaign_players',players);
+  idbSet('bfg_campaign_fleets',campaignFleets);
 }
 
 async function autoLoadAll(){
   var el=get('load-status');
   function set(bg,col,txt){el.style.background=bg;el.style.color=col;el.textContent=txt;}
-  if(IS_LOCAL){ set('#1a1a0a','var(--orange)','📂 Helyi mód — localStorage-ból dolgozunk.'); return; }
+  if(IS_LOCAL){ set('#1a1a0a','var(--orange)','📂 Helyi mód — a böngésző tárhelyéből dolgozunk.'); return; }
   set('var(--inp)','var(--dim)','⏳ Betöltés GitHub-ról...');
   try{
     var cRes=await fetch('./data/campaign.json?_='+Date.now());
     if(cRes.ok){ var cObj=await cRes.json(); players=cObj.players||players; campaignFleets=cObj.campaignFleets||campaignFleets; saveCampaign(); }
   }catch(e){}
-  try{ var r1=await fetch('./data/refits.json?_='+Date.now()); if(r1.ok){ refits=await r1.json(); localStorage.setItem('bfg_campaign_refits',JSON.stringify(refits)); } }catch(e){}
-  try{ var r2=await fetch('./data/upgrades.json?_='+Date.now()); if(r2.ok){ upgrades=await r2.json(); localStorage.setItem('bfg_campaign_upgrades',JSON.stringify(upgrades)); } }catch(e){}
+  try{ var r1=await fetch('./data/refits.json?_='+Date.now()); if(r1.ok){ refits=await r1.json(); await idbSet('bfg_campaign_refits',refits); } }catch(e){}
+  try{ var r2=await fetch('./data/upgrades.json?_='+Date.now()); if(r2.ok){ upgrades=await r2.json(); await idbSet('bfg_campaign_upgrades',upgrades); } }catch(e){}
   try{
     var mRes=await fetch('./data/manifest.json?_='+Date.now());
     if(mRes.ok){
@@ -231,7 +280,7 @@ async function autoLoadAll(){
       for(var i=0;i<(manifest.ships||[]).length;i++){try{var r=await fetch('./data/ships/'+manifest.ships[i]+'.txt?_='+Date.now());if(r.ok)newShips.push(await r.json());}catch(e2){}}
       for(var j=0;j<(manifest.commanders||[]).length;j++){try{var r2b=await fetch('./data/commanders/'+manifest.commanders[j]+'.txt?_='+Date.now());if(r2b.ok)newCmds.push(await r2b.json());}catch(e3){}}
       if(newShips.length) ships=newShips; if(newCmds.length) commanders=newCmds;
-      localStorage.setItem('bfg_ships',JSON.stringify(ships)); localStorage.setItem('bfg_commanders',JSON.stringify(commanders));
+      await idbSet('bfg_ships',ships); await idbSet('bfg_commanders',commanders);
     }
   }catch(e){}
   set('#0d2b1a','var(--green)','✅ Betöltve — '+ships.length+' hajó, '+players.length+' játékos, '+refits.length+' refit, '+upgrades.length+' upgrade.');
@@ -691,9 +740,12 @@ function renderCampaignOnboardList(){
 // ============================================================
 // INIT
 // ============================================================
-loadAll();
-renderPlayerSelects();
-autoLoadAll();
+async function initPage(){
+  await loadAll();
+  renderPlayerSelects();
+  autoLoadAll();
+}
+initPage();
 </script>
 </body>
 </html>

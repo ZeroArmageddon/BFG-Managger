@@ -157,6 +157,17 @@ nav::-webkit-scrollbar{display:none;}
 
 .status{font-size:.8rem;padding:.36rem .58rem;border-radius:4px;background:var(--inp);margin-bottom:.72rem;}
 .toast{position:fixed;bottom:1.1rem;right:1.1rem;padding:.55rem .95rem;border-radius:6px;font-size:.83rem;font-weight:bold;background:var(--card);border:1px solid var(--gdim);color:var(--txt);z-index:999;display:none;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+#pinned-rules-bar{position:fixed;left:0;right:0;bottom:0;z-index:250;background:var(--card);border-top:2px solid var(--gold);display:none;}
+#pinned-rules-bar.show{display:block;}
+#pinned-rules-chips{display:flex;gap:.4rem;overflow-x:auto;padding:.5rem .7rem;-webkit-overflow-scrolling:touch;align-items:center;}
+#pinned-rules-chips::-webkit-scrollbar{display:none;}
+.pinned-chip{background:var(--inp);border:1px solid var(--teal);color:#4ad9c9;padding:.32rem .75rem;border-radius:16px;font-size:.78rem;white-space:nowrap;cursor:pointer;flex-shrink:0;}
+.pinned-chip.active{background:var(--teal);color:#fff;}
+.pinned-bar-label{color:var(--dim);font-size:.7rem;flex-shrink:0;padding-right:.2rem;}
+#pinned-rule-expanded{max-height:38vh;overflow-y:auto;padding:.7rem .9rem;border-top:1px solid #2a2a3a;font-size:.85rem;background:var(--inp);display:none;}
+#pinned-rule-expanded.open{display:block;}
+#pinned-rule-expanded h4{color:var(--gold);margin-bottom:.4rem;font-size:.9rem;}
+.page-battle-padded{padding-bottom:56px;}
 .toast.show{display:block;}
 .empty{text-align:center;padding:1.8rem 1rem;color:var(--dim);}
 .empty-icon{font-size:1.75rem;margin-bottom:.42rem;}
@@ -255,6 +266,12 @@ nav::-webkit-scrollbar{display:none;}
   </div>
 </div>
 
+<!-- PINNED RULES BAR — battle mode only, stays out of the way (bottom, collapsible) -->
+<div id="pinned-rules-bar">
+  <div id="pinned-rules-chips"></div>
+  <div id="pinned-rule-expanded"></div>
+</div>
+
 <div class="cpage" id="page-log">
   <div class="wrap">
     <div class="card">
@@ -323,6 +340,7 @@ nav::-webkit-scrollbar{display:none;}
 <script>
 var IS_LOCAL=location.protocol==='file:';
 var players=[], planets=[], connections=[], upgrades=[], refits=[], campaignFleets=[], battleLog=[];
+var rulebookEntries=[], pinnedRules=[]; // for the pinned-rules bar in Campaign battle mode
 var campaignBattleState={}; // persistent HP/LD/crits — NEVER auto-reset in bulk
 var ships=[], commanders=[]; // read-only, shared from the main ship roster
 var PALETTE=['#d94a4a','#4a90d9','#4ad97a','#c9a227','#a07aee','#d97a1a','#1a9a8a','#d94ac9','#7acbd9','#e0e0e0'];
@@ -335,67 +353,122 @@ function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderCo
 function openModal(id){get(id).classList.add('open');}
 function closeModal(id){get(id).classList.remove('open');}
 
+// ============================================================
+// INDEXEDDB — same shared data store as the rest of the suite (Dev/App/
+// Rulebook/Campaign Fleet Builder). Vastly bigger quota than localStorage,
+// stores real objects directly, and auto-migrates any pre-existing
+// localStorage data the first time each key is read.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
+}
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+
 // ---- LOAD/SAVE ----
-function loadAll(){
-  try{players=JSON.parse(localStorage.getItem('bfg_campaign_players')||'[]');}catch(e){players=[];}
-  try{planets=JSON.parse(localStorage.getItem('bfg_campaign_planets')||'[]');}catch(e){planets=[];}
-  try{connections=JSON.parse(localStorage.getItem('bfg_campaign_connections')||'[]');}catch(e){connections=[];}
-  try{upgrades=JSON.parse(localStorage.getItem('bfg_campaign_upgrades')||'[]');}catch(e){upgrades=[];}
-  try{refits=JSON.parse(localStorage.getItem('bfg_campaign_refits')||'[]');}catch(e){refits=[];}
-  try{campaignFleets=JSON.parse(localStorage.getItem('bfg_campaign_fleets')||'[]');}catch(e){campaignFleets=[];}
-  try{battleLog=JSON.parse(localStorage.getItem('bfg_campaign_log')||'[]');}catch(e){battleLog=[];}
-  try{campaignBattleState=JSON.parse(localStorage.getItem('bfg_campaign_battle')||'{}');}catch(e){campaignBattleState={};}
-  try{ships=JSON.parse(localStorage.getItem('bfg_ships')||'[]');}catch(e){ships=[];}
-  try{commanders=JSON.parse(localStorage.getItem('bfg_commanders')||'[]');}catch(e){commanders=[];}
+async function loadAll(){
+  players=await idbGetMigrated('bfg_campaign_players',[]);
+  planets=await idbGetMigrated('bfg_campaign_planets',[]);
+  connections=await idbGetMigrated('bfg_campaign_connections',[]);
+  upgrades=await idbGetMigrated('bfg_campaign_upgrades',[]);
+  refits=await idbGetMigrated('bfg_campaign_refits',[]);
+  campaignFleets=await idbGetMigrated('bfg_campaign_fleets',[]);
+  battleLog=await idbGetMigrated('bfg_campaign_log',[]);
+  campaignBattleState=await idbGetMigrated('bfg_campaign_battle',{});
+  ships=await idbGetMigrated('bfg_ships',[]);
+  commanders=await idbGetMigrated('bfg_commanders',[]);
+  rulebookEntries=await idbGetMigrated('bfg_rulebook',[]);
+  pinnedRules=await idbGetMigrated('bfg_pinned_rules',[]);
 }
 function saveCampaign(){
-  localStorage.setItem('bfg_campaign_players',JSON.stringify(players));
-  localStorage.setItem('bfg_campaign_planets',JSON.stringify(planets));
-  localStorage.setItem('bfg_campaign_connections',JSON.stringify(connections));
-  localStorage.setItem('bfg_campaign_upgrades',JSON.stringify(upgrades));
-  localStorage.setItem('bfg_campaign_refits',JSON.stringify(refits));
-  localStorage.setItem('bfg_campaign_fleets',JSON.stringify(campaignFleets));
-  localStorage.setItem('bfg_campaign_log',JSON.stringify(battleLog));
+  idbSet('bfg_campaign_players',players);
+  idbSet('bfg_campaign_planets',planets);
+  idbSet('bfg_campaign_connections',connections);
+  idbSet('bfg_campaign_upgrades',upgrades);
+  idbSet('bfg_campaign_refits',refits);
+  idbSet('bfg_campaign_fleets',campaignFleets);
+  idbSet('bfg_campaign_log',battleLog);
 }
 // Battle state saved separately — this is what must NEVER be wiped in bulk.
 function saveCampaignBattle(){
-  localStorage.setItem('bfg_campaign_battle',JSON.stringify(campaignBattleState));
+  idbSet('bfg_campaign_battle',campaignBattleState);
 }
 
 // ---- TAB NAV ----
 // Re-reads the data that other pages (Developer, Campaign Fleet Builder) may
-// have changed in localStorage while this page stayed open — without this,
-// switching to Battle mode after buying a ship on the Fleet Builder page
-// would show stale data until a full reload.
-function refreshSharedData(){
-  try{players=JSON.parse(localStorage.getItem('bfg_campaign_players')||'[]');}catch(e){}
-  try{campaignFleets=JSON.parse(localStorage.getItem('bfg_campaign_fleets')||'[]');}catch(e){}
-  try{refits=JSON.parse(localStorage.getItem('bfg_campaign_refits')||'[]');}catch(e){}
-  try{upgrades=JSON.parse(localStorage.getItem('bfg_campaign_upgrades')||'[]');}catch(e){}
-  try{ships=JSON.parse(localStorage.getItem('bfg_ships')||'[]');}catch(e){}
-  try{commanders=JSON.parse(localStorage.getItem('bfg_commanders')||'[]');}catch(e){}
+// have changed while this page stayed open — without this, switching to
+// Battle mode after buying a ship on the Fleet Builder page would show stale
+// data until a full reload.
+async function refreshSharedData(){
+  players=await idbGetMigrated('bfg_campaign_players',players);
+  campaignFleets=await idbGetMigrated('bfg_campaign_fleets',campaignFleets);
+  refits=await idbGetMigrated('bfg_campaign_refits',refits);
+  upgrades=await idbGetMigrated('bfg_campaign_upgrades',upgrades);
+  ships=await idbGetMigrated('bfg_ships',ships);
+  commanders=await idbGetMigrated('bfg_commanders',commanders);
+  rulebookEntries=await idbGetMigrated('bfg_rulebook',rulebookEntries);
+  pinnedRules=await idbGetMigrated('bfg_pinned_rules',pinnedRules);
 }
 document.querySelectorAll('.ctab').forEach(function(tab){
-  tab.addEventListener('click',function(){
+  tab.addEventListener('click',async function(){
     document.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('active');});
     document.querySelectorAll('.cpage').forEach(function(p){p.classList.remove('active');});
     tab.classList.add('active');
     get('page-'+tab.dataset.tab).classList.add('active');
-    refreshSharedData();
+    await refreshSharedData();
     if(tab.dataset.tab==='map') renderMap();
     if(tab.dataset.tab==='players') renderPlayers();
     if(tab.dataset.tab==='log') renderLogSelectors();
-    if(tab.dataset.tab==='battle'){ renderBattleFleetSelect(); if(activeBattlePlayerId) renderCampaignBattle(); }
+    if(tab.dataset.tab==='battle'){ renderBattleFleetSelect(); if(activeBattlePlayerId) renderCampaignBattle(); renderPinnedBar(); }
+    else { get('pinned-rules-bar').classList.remove('show'); document.body.classList.remove('page-battle-padded'); }
   });
 });
-document.addEventListener('visibilitychange',function(){
+document.addEventListener('visibilitychange',async function(){
   if(document.visibilityState!=='visible') return;
-  refreshSharedData();
+  await refreshSharedData();
   var activeTab=document.querySelector('.ctab.active');
   if(!activeTab) return;
   if(activeTab.dataset.tab==='map') renderMap();
   if(activeTab.dataset.tab==='players') renderPlayers();
-  if(activeTab.dataset.tab==='battle'){ renderBattleFleetSelect(); if(activeBattlePlayerId) renderCampaignBattle(); }
+  if(activeTab.dataset.tab==='battle'){ renderBattleFleetSelect(); if(activeBattlePlayerId) renderCampaignBattle(); renderPinnedBar(); }
 });
 
 // ============================================================
@@ -796,6 +869,40 @@ get('battle-player-select').addEventListener('change',function(){
   renderCampaignBattle();
 });
 
+// ---- PINNED RULES BAR (Campaign battle mode) ----
+function pinnedContentToHtml(content){
+  content=content||'';
+  if(content.indexOf('<')===-1) return esc(content).replace(/\n/g,'<br>');
+  return content;
+}
+var expandedPinnedId=null;
+function renderPinnedBar(){
+  var bar=get('pinned-rules-bar'); if(!bar) return;
+  var pinned=pinnedRules.map(function(id){return rulebookEntries.find(function(e){return e.id===id;});}).filter(Boolean);
+  if(!pinned.length){ bar.classList.remove('show'); document.body.classList.remove('page-battle-padded'); return; }
+  bar.classList.add('show');
+  document.body.classList.add('page-battle-padded');
+  var chipsEl=get('pinned-rules-chips');
+  chipsEl.innerHTML='<span class="pinned-bar-label">📌</span>'+pinned.map(function(e){
+    return '<button type="button" class="pinned-chip'+(e.id===expandedPinnedId?' active':'')+'" data-id="'+e.id+'">'+esc(e.title)+'</button>';
+  }).join('');
+  chipsEl.querySelectorAll('.pinned-chip').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      expandedPinnedId=(expandedPinnedId===btn.dataset.id)?null:btn.dataset.id;
+      renderPinnedBar();
+    });
+  });
+  var expandedEl=get('pinned-rule-expanded');
+  if(expandedPinnedId){
+    var e=pinned.find(function(x){return x.id===expandedPinnedId;});
+    expandedEl.innerHTML=e?('<h4>'+esc(e.title)+'</h4>'+pinnedContentToHtml(e.content)):'';
+    expandedEl.classList.add('open');
+  } else {
+    expandedEl.classList.remove('open');
+    expandedEl.innerHTML='';
+  }
+}
+
 function renderCampaignBattle(){
   var el=get('campaign-battle-cards');
   if(!activeBattlePlayerId){ el.innerHTML='<div class="empty"><div class="empty-icon">💥</div><p>Válassz egy játékost a csata induláshoz.</p></div>'; return; }
@@ -945,13 +1052,13 @@ async function autoLoadCampaignCatalogs(){
   if(IS_LOCAL) return;
   try{ var r1=await fetch('./data/refits.json?_='+Date.now()); if(r1.ok) refits=await r1.json(); }catch(e){}
   try{ var r2=await fetch('./data/upgrades.json?_='+Date.now()); if(r2.ok) upgrades=await r2.json(); }catch(e){}
-  localStorage.setItem('bfg_campaign_refits',JSON.stringify(refits));
-  localStorage.setItem('bfg_campaign_upgrades',JSON.stringify(upgrades));
+  await idbSet('bfg_campaign_refits',refits);
+  await idbSet('bfg_campaign_upgrades',upgrades);
 }
 async function autoLoadCampaign(){
   var el=get('load-status');
   function set(bg,col,txt){el.style.background=bg;el.style.color=col;el.textContent=txt;}
-  if(IS_LOCAL){ set('#1a1a0a','var(--orange)','📂 Helyi mód — localStorage. Importáld a campaign.json-t, vagy szerkessz itt és exportáld.'); return; }
+  if(IS_LOCAL){ set('#1a1a0a','var(--orange)','📂 Helyi mód — a böngésző tárhelyéből dolgozunk. Importáld a campaign.json-t, vagy szerkessz itt és exportáld.'); return; }
   set('var(--inp)','var(--dim)','⏳ Betöltés GitHub-ról...');
   try{
     var res=await fetch('./data/campaign.json?_='+Date.now());
@@ -971,14 +1078,17 @@ async function autoLoadCampaign(){
 // ============================================================
 // INIT
 // ============================================================
-loadAll();
-renderColorPicker();
-renderPlayers();
-renderPlayerSelects();
-renderMap();
-renderBattleLog();
-get('log-date').value=new Date().toISOString().substr(0,10);
-autoLoadCampaign();
+async function initPage(){
+  await loadAll();
+  renderColorPicker();
+  renderPlayers();
+  renderPlayerSelects();
+  renderMap();
+  renderBattleLog();
+  get('log-date').value=new Date().toISOString().substr(0,10);
+  autoLoadCampaign();
+}
+initPage();
 </script>
 </body>
 </html>

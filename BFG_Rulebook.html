@@ -151,10 +151,66 @@ nav::-webkit-scrollbar{display:none;}
 <script>
 var IS_LOCAL=location.protocol==='file:';
 var entries=[];
+var pinnedRules=[]; // array of entry IDs — shared with Battle mode (App + Campaign) via IndexedDB
 var matchedId=null;
 
-function loadAll(){ try{entries=JSON.parse(localStorage.getItem('bfg_rulebook')||'[]');}catch(e){entries=[];} }
-function saveAll(){ localStorage.setItem('bfg_rulebook',JSON.stringify(entries)); }
+// ============================================================
+// INDEXEDDB — same shared data store as the rest of the suite. Vastly bigger
+// quota than localStorage (matters here since rulebook entries can include
+// several embedded images), and auto-migrates old localStorage data.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
+}
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+
+async function loadAll(){ entries=await idbGetMigrated('bfg_rulebook',[]); pinnedRules=await idbGetMigrated('bfg_pinned_rules',[]); }
+function saveAll(){ idbSet('bfg_rulebook',entries); }
+function savePinned(){ idbSet('bfg_pinned_rules',pinnedRules); }
+function togglePin(id){
+  var idx=pinnedRules.indexOf(id);
+  if(idx>=0) pinnedRules.splice(idx,1); else pinnedRules.push(id);
+  savePinned();
+}
 function gid(){return '_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function get(id){return document.getElementById(id);}
@@ -324,11 +380,12 @@ function renderList(){
   if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>Nincs szócikk. Hozz létre egyet fent!</p></div>';return;}
   el.innerHTML=list.map(function(e){
     var isMatch=e.id===matchedId;
+    var isPinned=pinnedRules.indexOf(e.id)>=0;
     return '<div class="entry'+(isMatch?' match':'')+'" data-id="'+e.id+'">'
       +'<div class="entry-head" data-id="'+e.id+'"><span class="entry-title">'+esc(e.title)+'</span>'+(e.category?'<span class="entry-cat">'+esc(e.category)+'</span>':'')+'<span class="entry-arrow">'+(isMatch?'▲':'▼')+'</span></div>'
       +'<div class="entry-body'+(isMatch?' open':'')+'" id="body-'+e.id+'">'
       +'<div class="entry-content">'+contentToHtml(e.content)+'</div>'
-      +'<div class="entry-acts"><button class="btn bgh bsm entry-edit" data-id="'+e.id+'">✏️ Edit</button><button class="btn bd bsm entry-del" data-id="'+e.id+'">🗑️ Törlés</button></div>'
+      +'<div class="entry-acts"><button class="btn '+(isPinned?'bg':'bgh')+' bsm entry-pin" data-id="'+e.id+'">'+(isPinned?'📌 Kitűzve':'📌 Kitűzés csata módhoz')+'</button><button class="btn bgh bsm entry-edit" data-id="'+e.id+'">✏️ Edit</button><button class="btn bd bsm entry-del" data-id="'+e.id+'">🗑️ Törlés</button></div>'
       +'</div></div>';
   }).join('');
   el.querySelectorAll('.entry-head').forEach(function(h){h.addEventListener('click',function(){
@@ -336,8 +393,9 @@ function renderList(){
     var open=body.classList.toggle('open');
     h.querySelector('.entry-arrow').textContent=open?'▲':'▼';
   });});
+  el.querySelectorAll('.entry-pin').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();togglePin(b.dataset.id);renderList();toast(pinnedRules.indexOf(b.dataset.id)>=0?'📌 Kitűzve — megjelenik csata módban':'Kitűzés visszavonva','var(--teal)');});});
   el.querySelectorAll('.entry-edit').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();startEdit(b.dataset.id);});});
-  el.querySelectorAll('.entry-del').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();if(!confirm('Törlöd ezt a szócikket?'))return;entries=entries.filter(function(x){return x.id!==b.dataset.id;});saveAll();expManifest();renderList();toast('🗑️ Szócikk törölve','#c8b840');});});
+  el.querySelectorAll('.entry-del').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();if(!confirm('Törlöd ezt a szócikket?'))return;entries=entries.filter(function(x){return x.id!==b.dataset.id;});pinnedRules=pinnedRules.filter(function(x){return x!==b.dataset.id;});savePinned();saveAll();expManifest();renderList();toast('🗑️ Szócikk törölve','#c8b840');});});
 }
 get('search-box').addEventListener('input',renderList);
 get('cat-filter').addEventListener('change',renderList);
@@ -391,8 +449,11 @@ function afterLoad(){
   }
 }
 
-loadAll();
-autoLoad();
+async function initPage(){
+  await loadAll();
+  autoLoad();
+}
+initPage();
 </script>
 </body>
 </html>

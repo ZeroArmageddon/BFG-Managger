@@ -148,6 +148,17 @@ nav::-webkit-scrollbar{display:none;}
 .battle-filter{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;}
 .battle-filter select{padding:.32rem .55rem;background:var(--inp);border:1px solid var(--gdim);color:var(--txt);border-radius:4px;font-size:.83rem;}
 .toast{position:fixed;bottom:1.1rem;right:1.1rem;padding:.55rem .95rem;border-radius:6px;font-size:.83rem;font-weight:bold;background:var(--card);border:1px solid var(--gdim);color:var(--txt);z-index:999;display:none;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+#pinned-rules-bar{position:fixed;left:0;right:0;bottom:0;z-index:250;background:var(--card);border-top:2px solid var(--gold);display:none;}
+#pinned-rules-bar.show{display:block;}
+#pinned-rules-chips{display:flex;gap:.4rem;overflow-x:auto;padding:.5rem .7rem;-webkit-overflow-scrolling:touch;align-items:center;}
+#pinned-rules-chips::-webkit-scrollbar{display:none;}
+.pinned-chip{background:var(--inp);border:1px solid var(--teal);color:#4ad9c9;padding:.32rem .75rem;border-radius:16px;font-size:.78rem;white-space:nowrap;cursor:pointer;flex-shrink:0;}
+.pinned-chip.active{background:var(--teal);color:#fff;}
+.pinned-bar-label{color:var(--dim);font-size:.7rem;flex-shrink:0;padding-right:.2rem;}
+#pinned-rule-expanded{max-height:38vh;overflow-y:auto;padding:.7rem .9rem;border-top:1px solid #2a2a3a;font-size:.85rem;background:var(--inp);display:none;}
+#pinned-rule-expanded.open{display:block;}
+#pinned-rule-expanded h4{color:var(--gold);margin-bottom:.4rem;font-size:.9rem;}
+.page-battle-padded{padding-bottom:56px;}
 .toast.show{display:block;}
 .empty{text-align:center;padding:1.8rem 1rem;color:var(--dim);}.empty-icon{font-size:1.75rem;margin-bottom:.42rem;}
 .divider{border:none;border-top:1px solid var(--gdim);margin:.72rem 0;}
@@ -254,6 +265,12 @@ nav::-webkit-scrollbar{display:none;}
   </div>
 </div>
 
+<!-- PINNED RULES BAR — battle mode only, stays out of the way (bottom, collapsible) -->
+<div id="pinned-rules-bar">
+  <div id="pinned-rules-chips"></div>
+  <div id="pinned-rule-expanded"></div>
+</div>
+
 <!-- SHIP MODAL -->
 <div class="modal-bg" id="ship-modal">
   <div class="modal" style="max-width:560px;">
@@ -305,6 +322,7 @@ nav::-webkit-scrollbar{display:none;}
 
 <script>
 var ships=[], commanders=[], fleets=[], activeFleetId=null, battleState={};
+var rulebookEntries=[], pinnedRules=[]; // for the pinned-rules bar in battle mode
 var enabledPackages=[];
 var IS_LOCAL=location.protocol==='file:';
 var CRITS=[
@@ -321,27 +339,79 @@ var CRITS=[
   {roll:12,dmg:'+D6',name:'Bulkhead Collapse',desc:'Belső tartóoszlopok roppannak össze. Imádkozz hogy maradjon valami!'}
 ];
 
-function loadAll(){
-  try{ships=JSON.parse(localStorage.getItem('bfg_ships')||'[]');}catch(e){ships=[];}
-  try{commanders=JSON.parse(localStorage.getItem('bfg_commanders')||'[]');}catch(e){commanders=[];}
-  try{fleets=JSON.parse(localStorage.getItem('bfg_fleets')||'[]');}catch(e){fleets=[];}
+// ============================================================
+// INDEXEDDB — same shared data store as BFG_Dev.html. Vastly bigger quota
+// than localStorage, stores real objects (no JSON stringify needed), and
+// auto-migrates any pre-existing localStorage data the first time it's read.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
+}
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+
+async function loadAll(){
+  ships=await idbGetMigrated('bfg_ships',[]);
+  commanders=await idbGetMigrated('bfg_commanders',[]);
+  fleets=await idbGetMigrated('bfg_fleets',[]);
   if(!fleets.length) fleets=[{id:gid(),name:'1. Flotta',pointsLimit:1500,fleet:[],commanders:[]}];
   fleets.forEach(function(f){if(!f.commanders)f.commanders=[];f.fleet.forEach(function(e){if(!e.wargear)e.wargear={};if(!e.weapons)e.weapons={};if(!e.variantId)e.variantId=null;if(typeof e.note!=='string')e.note='';if(!e.weaponGroups)e.weaponGroups={};if(!e.commanderIds)e.commanderIds=[];});});
-  activeFleetId=localStorage.getItem('bfg_active')||fleets[0].id;
+  activeFleetId=(await idbGetMigrated('bfg_active',null))||fleets[0].id;
   if(!fleets.find(function(f){return f.id===activeFleetId;}))activeFleetId=fleets[0].id;
-  try{battleState=JSON.parse(localStorage.getItem('bfg_battle')||'{}');}catch(e){battleState={};}
-  try{enabledPackages=JSON.parse(localStorage.getItem('bfg_enabled_packages')||'[]');}catch(e){enabledPackages=[];}
+  battleState=await idbGetMigrated('bfg_battle',{});
+  enabledPackages=await idbGetMigrated('bfg_enabled_packages',[]);
+  rulebookEntries=await idbGetMigrated('bfg_rulebook',[]);
+  pinnedRules=await idbGetMigrated('bfg_pinned_rules',[]);
 }
-// Re-read ships/commanders from localStorage without touching the active fleet/battle state.
-// Needed because the Developer page may have added/edited ships in a different tab while
-// this page stayed open — without this, the in-memory `ships` array goes stale.
-function refreshShipsAndCommanders(){
-  try{ships=JSON.parse(localStorage.getItem('bfg_ships')||'[]');}catch(e){}
-  try{commanders=JSON.parse(localStorage.getItem('bfg_commanders')||'[]');}catch(e){}
+// Re-read ships/commanders from IndexedDB without touching the active fleet/battle
+// state. Needed because the Developer page may have added/edited ships in a
+// different tab while this page stayed open — without this, the in-memory
+// `ships` array goes stale.
+async function refreshShipsAndCommanders(){
+  ships=await idbGetMigrated('bfg_ships',ships);
+  commanders=await idbGetMigrated('bfg_commanders',commanders);
 }
-function saveEnabledPackages(){localStorage.setItem('bfg_enabled_packages',JSON.stringify(enabledPackages));}
-function saveFleets(){localStorage.setItem('bfg_fleets',JSON.stringify(fleets));localStorage.setItem('bfg_active',activeFleetId);}
-function saveBattle(){localStorage.setItem('bfg_battle',JSON.stringify(battleState));}
+function saveEnabledPackages(){idbSet('bfg_enabled_packages',enabledPackages);}
+function saveFleets(){idbSet('bfg_fleets',fleets);idbSet('bfg_active',activeFleetId);}
+function saveBattle(){idbSet('bfg_battle',battleState);}
 function activeFleet(){return fleets.find(function(f){return f.id===activeFleetId;})||fleets[0];}
 
 function gid(){return '_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
@@ -388,24 +458,30 @@ function updatePtsBar(){
 get('pts-limit-inp').addEventListener('change',function(){activeFleet().pointsLimit=parseInt(this.value)||0;saveFleets();updatePtsBar();renderTabs();});
 get('fleet-name-inp').addEventListener('input',function(){activeFleet().name=this.value||'Névtelen';saveFleets();renderTabs();});
 
+async function refreshPinnedRules(){
+  rulebookEntries=await idbGetMigrated('bfg_rulebook',rulebookEntries);
+  pinnedRules=await idbGetMigrated('bfg_pinned_rules',pinnedRules);
+}
+
 // ---- NAV ----
 ['fleet','battle'].forEach(function(p){
-  get('nb-'+p).addEventListener('click',function(){
+  get('nb-'+p).addEventListener('click',async function(){
     ['fleet','battle'].forEach(function(x){get('nb-'+x).classList.remove('active');get('page-'+x).classList.remove('active');});
     get('nb-'+p).classList.add('active');get('page-'+p).classList.add('active');
-    refreshShipsAndCommanders();
-    if(p==='battle') renderBattle();
-    else{renderTabs();renderFleet();updatePtsBar();if(get('edit-toggle').checked){renderPackageToggles();renderAvailShips();renderAvailCmds();}}
+    await refreshShipsAndCommanders();
+    if(p==='battle'){ await refreshPinnedRules(); renderBattle(); renderPinnedBar(); }
+    else{ get('pinned-rules-bar').classList.remove('show'); document.body.classList.remove('page-battle-padded'); renderTabs();renderFleet();updatePtsBar();if(get('edit-toggle').checked){renderPackageToggles();renderAvailShips();renderAvailCmds();} }
   });
 });
 
 // Refresh ships/commanders whenever the tab regains focus — covers switching back
 // from a Developer tab where ships may have been added/edited in the meantime.
-document.addEventListener('visibilitychange',function(){
+document.addEventListener('visibilitychange',async function(){
   if(document.visibilityState!=='visible') return;
-  refreshShipsAndCommanders();
+  await refreshShipsAndCommanders();
   if(get('page-battle').classList.contains('active')){
-    renderBattle();
+    await refreshPinnedRules();
+    renderBattle(); renderPinnedBar();
   } else {
     renderTabs();renderFleet();updatePtsBar();
     if(get('edit-toggle').checked){renderPackageToggles();renderAvailShips();renderAvailCmds();}
@@ -442,7 +518,7 @@ get('btn-copy-code').addEventListener('click',function(){var code=encodeFleet(ac
 get('btn-import-code').addEventListener('click',function(){var code=get('import-code').value.trim();var st=get('import-fleet-status');if(!code){st.textContent='⚠️ Írj be egy kódot!';return;}var dec=decodeFleet(code);if(!dec){st.textContent='❌ Hibás kód!';return;}var vf=dec.fleet.filter(function(e){return ships.find(function(s){return s.id===e.shipId;});});var vc=dec.commanders.filter(function(cid){return commanders.find(function(c){return c.id===cid;});});var miss=dec.fleet.length-vf.length;var id=gid();fleets.push({id:id,name:dec.name,pointsLimit:dec.pointsLimit,fleet:vf,commanders:vc});activeFleetId=id;saveFleets();get('import-code').value='';st.textContent=miss>0?'✅ Betöltve! ('+miss+' hajó hiányzik)':'✅ Betöltve!';renderTabs();renderFleet();updatePtsBar();});
 
 // ---- EDIT MODE ----
-get('edit-toggle').addEventListener('change',function(){var on=this.checked;get('fleet-container').classList.toggle('edit-on',on);get('cmd-container').classList.toggle('edit-on',on);get('avail-section').style.display=on?'block':'none';get('avail-cmd-section').style.display=on?'block':'none';get('package-toggle-wrap').style.display=on?'block':'none';if(on){refreshShipsAndCommanders();renderPackageToggles();renderAvailShips();renderAvailCmds();}renderFleet();});
+get('edit-toggle').addEventListener('change',async function(){var on=this.checked;get('fleet-container').classList.toggle('edit-on',on);get('cmd-container').classList.toggle('edit-on',on);get('avail-section').style.display=on?'block':'none';get('avail-cmd-section').style.display=on?'block':'none';get('package-toggle-wrap').style.display=on?'block':'none';if(on){await refreshShipsAndCommanders();renderPackageToggles();renderAvailShips();renderAvailCmds();}renderFleet();});
 
 function renderPackageToggles(){
   var wrap=get('package-toggle-wrap');
@@ -887,6 +963,42 @@ function buildDisplayWeapons(ship, entry){
   return list;
 }
 
+// ---- PINNED RULES BAR (battle mode) ----
+// Same HTML-or-plain-text detection used in the Rulebook page, kept in sync
+// here since this file renders rule content directly without navigating away.
+function pinnedContentToHtml(content){
+  content=content||'';
+  if(content.indexOf('<')===-1) return esc(content).replace(/\n/g,'<br>');
+  return content;
+}
+var expandedPinnedId=null;
+function renderPinnedBar(){
+  var bar=get('pinned-rules-bar');
+  var pinned=pinnedRules.map(function(id){return rulebookEntries.find(function(e){return e.id===id;});}).filter(Boolean);
+  if(!pinned.length){ bar.classList.remove('show'); document.body.classList.remove('page-battle-padded'); return; }
+  bar.classList.add('show');
+  document.body.classList.add('page-battle-padded');
+  var chipsEl=get('pinned-rules-chips');
+  chipsEl.innerHTML='<span class="pinned-bar-label">📌</span>'+pinned.map(function(e){
+    return '<button type="button" class="pinned-chip'+(e.id===expandedPinnedId?' active':'')+'" data-id="'+e.id+'">'+esc(e.title)+'</button>';
+  }).join('');
+  chipsEl.querySelectorAll('.pinned-chip').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      expandedPinnedId=(expandedPinnedId===btn.dataset.id)?null:btn.dataset.id;
+      renderPinnedBar();
+    });
+  });
+  var expandedEl=get('pinned-rule-expanded');
+  if(expandedPinnedId){
+    var e=pinned.find(function(x){return x.id===expandedPinnedId;});
+    expandedEl.innerHTML=e?('<h4>'+esc(e.title)+'</h4>'+pinnedContentToHtml(e.content)):'';
+    expandedEl.classList.add('open');
+  } else {
+    expandedEl.classList.remove('open');
+    expandedEl.innerHTML='';
+  }
+}
+
 function renderBattle(){
   var sel=get('battle-fleet-sel');sel.innerHTML=fleets.map(function(f){return '<option value="'+f.id+'"'+(f.id===activeFleetId?' selected':'')+'>'+esc(f.name)+'</option>';}).join('');
   var f=activeFleet(),el=get('battle-cards');
@@ -1017,7 +1129,11 @@ function buildWeaponsSec(weapons,battleKey){
 // ============================================================
 // INIT
 // ============================================================
-loadAll();renderTabs();renderFleet();updatePtsBar();
+async function initPage(){
+  await loadAll();
+  renderTabs();renderFleet();updatePtsBar();
+}
+initPage();
 </script>
 </body>
 </html>

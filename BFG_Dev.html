@@ -424,26 +424,75 @@ function toggleArcOption(str, opt){
   return tokens.join('/');
 }
 
-function loadAll() {
-  try { ships      = JSON.parse(localStorage.getItem('bfg_ships')      || '[]'); } catch(e) { ships = []; }
-  try { commanders = JSON.parse(localStorage.getItem('bfg_commanders') || '[]'); } catch(e) { commanders = []; }
-  try { fleets     = JSON.parse(localStorage.getItem('bfg_fleets')     || '[]'); } catch(e) { fleets = []; }
-  try { refits     = JSON.parse(localStorage.getItem('bfg_campaign_refits')   || '[]'); } catch(e) { refits = []; }
-  try { upgrades   = JSON.parse(localStorage.getItem('bfg_campaign_upgrades') || '[]'); } catch(e) { upgrades = []; }
+// ============================================================
+// INDEXEDDB — replaces localStorage as the main data store. Browsers give
+// IndexedDB a MUCH bigger quota (typically hundreds of MB or more, vs the
+// ~5-10MB localStorage cap that kept running out with lots of ship images).
+// It also stores real JS objects directly, no JSON.stringify/parse needed.
+// Any data already sitting in localStorage from before this upgrade gets
+// copied over automatically the first time each key is read — nothing is lost.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
 }
-function saveCampaignCatalogs(){
-  localStorage.setItem('bfg_campaign_refits', JSON.stringify(refits));
-  localStorage.setItem('bfg_campaign_upgrades', JSON.stringify(upgrades));
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
 }
-function saveShips() {
-  try{
-    localStorage.setItem('bfg_ships',      JSON.stringify(ships));
-    localStorage.setItem('bfg_commanders', JSON.stringify(commanders));
-    return true;
-  }catch(e){
-    console.error('localStorage save failed:', e);
-    return false;
-  }
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+// Reads a key from IndexedDB; if it's not there yet but an old localStorage
+// entry exists (pre-migration), copies it in and returns it — one-time, silent.
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+
+async function loadAll() {
+  ships      = await idbGetMigrated('bfg_ships', []);
+  commanders = await idbGetMigrated('bfg_commanders', []);
+  fleets     = await idbGetMigrated('bfg_fleets', []);
+  refits     = await idbGetMigrated('bfg_campaign_refits', []);
+  upgrades   = await idbGetMigrated('bfg_campaign_upgrades', []);
+}
+async function saveCampaignCatalogs(){
+  await idbSet('bfg_campaign_refits', refits);
+  await idbSet('bfg_campaign_upgrades', upgrades);
+}
+async function saveShips() {
+  var ok1=await idbSet('bfg_ships', ships);
+  var ok2=await idbSet('bfg_commanders', commanders);
+  return ok1 && ok2;
 }
 
 // ---- IMAGE COMPRESSION (Canvas-based, runs entirely in the browser) ----
@@ -648,29 +697,29 @@ async function compressExistingImages(){
     s.image=compressed;
     totalAfter+=compressed.length;
   }
-  var ok=saveShips();
+  var ok=await saveShips();
   renderDevShips(); renderStorageStatus();
   var savedKB=Math.round((totalBefore-totalAfter)/1024);
   if(ok) toast('🗜️ '+candidates.length+' kép tömörítve — kb. '+savedKB+' KB felszabadítva.','var(--green)');
   else toast('⚠️ Tömörítve, de így is sok a tárhely — exportáld a hajókat és üríts helyet.','var(--orange)');
 }
 
-function getStorageUsageKB(){
-  var total=0;
-  try{
-    for(var key in localStorage){
-      if(localStorage.hasOwnProperty(key)) total+=(localStorage[key].length+key.length);
-    }
-  }catch(e){}
-  return Math.round(total/1024);
-}
-function renderStorageStatus(){
+async function renderStorageStatus(){
   var el=get('storage-status'); if(!el) return;
-  var kb=getStorageUsageKB();
-  var pct=Math.min(100,Math.round(kb/5120*100)); // browsers commonly cap around 5MB per origin
-  var col=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--dim)';
-  el.style.color=col;
-  el.textContent='💾 Böngésző tárhely: ~'+kb+' KB használva'+(pct>70?' ('+pct+'% — közel a limithez! Nagy képek eltávolítása vagy URL-es kép használata ajánlott.)':'');
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      var est=await navigator.storage.estimate();
+      var usedMB=(est.usage/1024/1024).toFixed(1);
+      var quotaMB=(est.quota/1024/1024).toFixed(0);
+      var pct=est.quota?Math.round(est.usage/est.quota*100):0;
+      var col=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--dim)';
+      el.style.color=col;
+      el.textContent='💾 Tárhely (IndexedDB): ~'+usedMB+' MB / ~'+quotaMB+' MB használva ('+pct+'%)'+(pct>70?' — közel a limithez, de ez jóval nagyobb keret mint a localStorage volt.':'');
+      return;
+    }catch(e){}
+  }
+  el.style.color='var(--dim)';
+  el.textContent='💾 Tárhely: IndexedDB aktív (pontos használat lekérdezése nem elérhető ebben a böngészőben).';
 }
 function gid() { return '_' + Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -698,13 +747,15 @@ get('btn-compress-images').addEventListener('click',compressExistingImages);
 
 get('btn-exp-refits').addEventListener('click',function(){ expRefits(); toast('✅ refits.json letöltve','var(--green)'); });
 get('btn-exp-upgrades').addEventListener('click',function(){ expUpgrades(); toast('✅ upgrades.json letöltve','var(--green)'); });
-get('btn-clear-storage').addEventListener('click',function(){
+get('btn-clear-storage').addEventListener('click',async function(){
   if(!confirm('Ez törli az ÖSSZES böngészőben tárolt hajót és commandert (a data/ mappában lévő fájlokat NEM érinti). Biztosan folytatod? Előbb exportáld a hajóidat, ha még nem tetted!')) return;
-  localStorage.removeItem('bfg_ships');
+  await idbSet('bfg_ships', []);
+  await idbSet('bfg_commanders', []);
+  localStorage.removeItem('bfg_ships'); // clear any leftover legacy copy too
   localStorage.removeItem('bfg_commanders');
   ships=[]; commanders=[];
   renderDevShips(); renderDevCmds(); renderStorageStatus();
-  toast('🧹 Böngésző tárhely kiürítve. Importáld vissza a .txt fájlokat, vagy tölts be a GitHub-ról.','var(--green)');
+  toast('🧹 Tárhely kiürítve. Importáld vissza a .txt fájlokat, vagy tölts be a GitHub-ról.','var(--green)');
 });
 get('import-files').addEventListener('change',function(){
   var files=this.files; if(!files.length) return;
@@ -880,7 +931,7 @@ get('btn-detect-reloadable').addEventListener('click',autoDetectReloadableGlobal
 // one-click bulk pass over the whole ship roster — not just the ship currently
 // open in the form. The user can still fine-tune individual weapons by hand
 // afterwards (the per-weapon toggle is always available too).
-function autoDetectReloadableGlobal(){
+async function autoDetectReloadableGlobal(){
   var pattern=/launch\s*bay|launcher/i;
   var count=0, shipsAffected=0;
   ships.forEach(function(s){
@@ -889,7 +940,7 @@ function autoDetectReloadableGlobal(){
     (s.variants||[]).forEach(function(v){ (v.weapons||[]).forEach(function(w){ if(pattern.test(w.name||'')&&!w.reloadable){ w.reloadable=true; count++; hitOnThisShip=true; } }); });
     if(hitOnThisShip) shipsAffected++;
   });
-  var ok=saveShips();
+  var ok=await saveShips();
   // If a ship is currently open in the edit form, refresh its editor state too
   // so the form doesn't show stale (unmarked) data after the bulk update.
   var eid=get('edit-ship-id').value;
@@ -1126,7 +1177,7 @@ function startEditShip(id) {
   get('ship-form-sec').scrollIntoView({behavior:'smooth'});
 }
 get('btn-cancel-ship').addEventListener('click',clearShipForm);
-get('btn-save-ship').addEventListener('click',function(){
+get('btn-save-ship').addEventListener('click',async function(){
   var name=get('ship-name').value.trim(), faction=get('ship-faction').value.trim(), points=parseInt(get('ship-points').value);
   if(!name||!faction||isNaN(points)){toast('❌ Töltsd ki: Név, Frakció, Pontérték','var(--red)');return;}
   if(curUnofficial&&!get('ship-package').value.trim()){toast('❌ Add meg a csomag nevét (Unofficial hajónál kötelező)','var(--red)');return;}
@@ -1139,7 +1190,7 @@ get('btn-save-ship').addEventListener('click',function(){
       var backup=ships[idx];
       ships[idx]=Object.assign({},ships[idx],obj);
       savedShip=ships[idx];
-      ok=saveShips();
+      ok=await saveShips();
       if(!ok){ ships[idx]=backup; showStorageError(savedShip); return; }
       expShip(savedShip);clearShipForm();renderDevShips();renderStorageStatus();
       toast('✅ "'+name+'" frissítve, .txt letöltve','var(--green)');
@@ -1147,25 +1198,24 @@ get('btn-save-ship').addEventListener('click',function(){
   } else {
     savedShip=Object.assign({id:gid()},obj);
     ships.push(savedShip);
-    ok=saveShips();
+    ok=await saveShips();
     if(!ok){ ships.pop(); showStorageError(savedShip); return; }
     expShip(savedShip);if(savedShip.unofficial){expUnofficialManifest();}else{expManifest();}clearShipForm();renderDevShips();renderStorageStatus();
     toast('✅ "'+name+'" mentve, .txt + '+(savedShip.unofficial?'unofficial_manifest.json':'manifest.json')+' letöltve','var(--green)');
   }
 });
 
-// Shown when localStorage write fails (quota exceeded). We still let the user
-// download the .txt for this ship so no work is lost, even though it couldn't
-// be kept in browser storage.
+// Shown if IndexedDB write fails — much rarer now than with the old
+// localStorage-based system, since IndexedDB's quota is vastly larger, but
+// kept as a safety net for constrained devices / private browsing modes.
 function showStorageError(ship){
   expShip(ship);
-  var kb=getStorageUsageKB();
   get('dev-status').style.display='block';
   get('dev-status').style.color='var(--red)';
-  get('dev-status').innerHTML='❌ A böngésző tárhelye megtelt (~'+kb+' KB használva) — a hajó NEM lett elmentve a böngészőben, de a .txt fájlt letöltöttem, hogy ne vesszen el. '
-    +'Ez általában sok/nagy méretű beágyazott kép (base64) miatt történik. Megoldás: '
-    +'1) Kattints a fenti <b>🗜️ Meglévő képek tömörítése</b> gombra, ez általában felszabadít elég helyet, majd próbáld újra a mentést. '
-    +'2) Ha ez sem elég: exportáld az összes hajót .txt-be és nyomd meg a <b>🧹 Böngésző tárhely ürítése</b> gombot, majd importáld vissza a fájlokat.';
+  get('dev-status').innerHTML='❌ A böngésző tárhelye megtelt — a hajó NEM lett elmentve, de a .txt fájlt letöltöttem, hogy ne vesszen el. '
+    +'Ez IndexedDB-vel ritkán fordul elő, leginkább privát böngészés módban vagy nagyon kevés szabad lemezterületnél. Megoldás: '
+    +'1) Kattints a fenti <b>🗜️ Meglévő képek tömörítése</b> gombra. '
+    +'2) Ha ez sem elég: exportáld az összes hajót .txt-be, majd próbáld normál (nem privát) böngészési módban.';
   toast('❌ Mentés sikertelen — tárhely megtelt, de .txt letöltve','var(--red)');
 }
 
@@ -1248,7 +1298,7 @@ function renderDevShips() {
       +'</div></div></div>';
   }).join('');
   el.querySelectorAll('.dev-edit-ship').forEach(function(btn){btn.addEventListener('click',function(){startEditShip(btn.dataset.sid);});});
-  el.querySelectorAll('.dev-del-ship').forEach(function(btn){btn.addEventListener('click',function(){ if(!confirm('Törlöd?')) return; var delShip=ships.find(function(x){return x.id===btn.dataset.sid;}); ships=ships.filter(function(s){return s.id!==btn.dataset.sid;}); fleets.forEach(function(f){f.fleet=f.fleet.filter(function(e){return e.shipId!==btn.dataset.sid;});}); localStorage.setItem('bfg_fleets',JSON.stringify(fleets)); saveShips(); if(delShip&&delShip.unofficial){expUnofficialManifest();}else{expManifest();} renderDevShips(); renderStorageStatus(); toast('🗑️ Hajó törölve','#c8b840'); });});
+  el.querySelectorAll('.dev-del-ship').forEach(function(btn){btn.addEventListener('click',async function(){ if(!confirm('Törlöd?')) return; var delShip=ships.find(function(x){return x.id===btn.dataset.sid;}); ships=ships.filter(function(s){return s.id!==btn.dataset.sid;}); fleets.forEach(function(f){f.fleet=f.fleet.filter(function(e){return e.shipId!==btn.dataset.sid;});}); await idbSet('bfg_fleets',fleets); await saveShips(); if(delShip&&delShip.unofficial){expUnofficialManifest();}else{expManifest();} renderDevShips(); renderStorageStatus(); toast('🗑️ Hajó törölve','#c8b840'); });});
   el.querySelectorAll('.dev-dl-ship').forEach(function(btn){btn.addEventListener('click',function(){var s=ships.find(function(x){return x.id===btn.dataset.sid;}); if(s) expShip(s);});});
 }
 get('dev-faction-filter').addEventListener('change',renderDevShips);
@@ -1277,7 +1327,7 @@ function renderDevCmds() {
       +'</div></div>';
   }).join('');
   el.querySelectorAll('.dev-edit-cmd').forEach(function(btn){btn.addEventListener('click',function(){startEditCmd(btn.dataset.cid);});});
-  el.querySelectorAll('.dev-del-cmd').forEach(function(btn){btn.addEventListener('click',function(){ if(!confirm('Törlöd?')) return; commanders=commanders.filter(function(c){return c.id!==btn.dataset.cid;}); fleets.forEach(function(f){f.commanders=f.commanders.filter(function(x){return x!==btn.dataset.cid;});}); localStorage.setItem('bfg_fleets',JSON.stringify(fleets)); saveShips(); expManifest(); renderDevCmds(); renderStorageStatus(); toast('🗑️ Commander törölve','#c8b840'); });});
+  el.querySelectorAll('.dev-del-cmd').forEach(function(btn){btn.addEventListener('click',async function(){ if(!confirm('Törlöd?')) return; commanders=commanders.filter(function(c){return c.id!==btn.dataset.cid;}); fleets.forEach(function(f){f.commanders=f.commanders.filter(function(x){return x!==btn.dataset.cid;});}); await idbSet('bfg_fleets',fleets); await saveShips(); expManifest(); renderDevCmds(); renderStorageStatus(); toast('🗑️ Commander törölve','#c8b840'); });});
   el.querySelectorAll('.dev-dl-cmd').forEach(function(btn){btn.addEventListener('click',function(){var c=commanders.find(function(x){return x.id===btn.dataset.cid;}); if(c) expCmd(c);});});
 }
 get('dev-cmd-faction-filter').addEventListener('change',renderDevCmds);
@@ -1471,7 +1521,12 @@ document.querySelectorAll('.ctab').forEach(function(tab){
   });
 });
 
-loadAll(); renderDevShips(); renderDevCmds(); renderWeapons(); renderWg(); renderVariants(); renderWGroups(); renderStorageStatus(); renderRefits(); renderUpgrades(); autoLoad(); autoLoadCampaignCatalogs();
+async function initPage(){
+  await loadAll();
+  renderDevShips(); renderDevCmds(); renderWeapons(); renderWg(); renderVariants(); renderWGroups(); renderStorageStatus(); renderRefits(); renderUpgrades();
+  autoLoad(); autoLoadCampaignCatalogs();
+}
+initPage();
 
 </script>
 </body>
