@@ -766,6 +766,25 @@ function campGetEntryBonus(ship,entry,field){
   (entry.upgradeIds||[]).forEach(function(uid){var u=upgrades.find(function(x){return x.id===uid;});if(u&&u[field]) bonus+=u[field];});
   return bonus;
 }
+// Some wargear/refit/upgrade can't be expressed as "+N to the number" — e.g.
+// it changes Armour to "6+ front / 5+" instead of a flat bonus. If anything
+// equipped has an override for this stat, that text COMPLETELY REPLACES the
+// stat (first one found wins — wargear, then refits, then upgrades) instead
+// of the usual bonus-add math.
+function campGetEntryOverride(ship,entry,overrideField){
+  if(ship.wargear&&entry.wargear){
+    var ids=Object.keys(entry.wargear);
+    for(var i=0;i<ids.length;i++){
+      var wg=ship.wargear.find(function(w){return w.id===ids[i];});
+      if(wg&&wg[overrideField]) return wg[overrideField];
+    }
+  }
+  var refitHit=(entry.refitIds||[]).map(function(rid){return refits.find(function(x){return x.id===rid;});}).find(function(r){return r&&r[overrideField];});
+  if(refitHit) return refitHit[overrideField];
+  var upgHit=(entry.upgradeIds||[]).map(function(uid){return upgrades.find(function(x){return x.id===uid;});}).find(function(u){return u&&u[overrideField];});
+  if(upgHit) return upgHit[overrideField];
+  return null;
+}
 function campGetMaxHp(ship,entry){return campBaseMaxHp(ship)+campGetEntryBonus(ship,entry,'hitsBonus');}
 function campApplyStatBonus(str,bonus){
   if(!str||!bonus) return str;
@@ -774,10 +793,12 @@ function campApplyStatBonus(str,bonus){
   return (parseFloat(m[1])+bonus)+m[2];
 }
 function campGetEffectiveStructuredStats(ship,entry){
-  var fields=[['speed','Speed','speedBonus'],['turns','Turns','turnsBonus'],['shields','Shields','shieldsBonus'],['armour','Armour','armourBonus'],['turret','Turret','turretBonus']];
+  var fields=[['speed','Speed','speedBonus','speedOverride'],['turns','Turns','turnsBonus','turnsOverride'],['shields','Shields','shieldsBonus','shieldsOverride'],['armour','Armour','armourBonus','armourOverride'],['turret','Turret','turretBonus','turretOverride']];
   var out=[];
   fields.forEach(function(f){
     var base=ship[f[0]]; if(!base) return;
+    var override=campGetEntryOverride(ship,entry,f[3]);
+    if(override){ out.push({label:f[1],value:override,boosted:true}); return; }
     var bonus=campGetEntryBonus(ship,entry,f[2]);
     out.push({label:f[1],value:bonus?campApplyStatBonus(base,bonus):base,boosted:!!bonus});
   });

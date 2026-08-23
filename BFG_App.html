@@ -896,6 +896,20 @@ function getEntryStatBonus(ship,entry,bonusField){
   });
   return bonus;
 }
+// Some wargear can't be expressed as "+N to the number" — e.g. it changes
+// Armour to "6+ front / 5+" instead of a flat bonus. If any equipped wargear
+// has an override for this stat, that text COMPLETELY REPLACES the stat
+// (first one found wins) instead of the usual bonus-add math.
+function getEntryStatOverride(ship,entry,overrideField){
+  if(ship.wargear&&entry&&entry.wargear){
+    var ids=Object.keys(entry.wargear);
+    for(var i=0;i<ids.length;i++){
+      var wg=ship.wargear.find(function(w){return w.id===ids[i];});
+      if(wg&&wg[overrideField]) return wg[overrideField];
+    }
+  }
+  return null;
+}
 
 // Applies a numeric bonus to the leading number of a stat string, keeping
 // whatever comes after it intact — e.g. applyStatBonus("20cm", 5) -> "25cm",
@@ -913,11 +927,13 @@ function applyStatBonus(str, bonus){
 // as {label, value} pairs, with any equipped wargear bonuses already applied.
 // entry may be null (browsing) — bonuses only apply with a real fleet entry.
 function getEffectiveStructuredStats(ship,entry){
-  var fields=[['speed','Speed','speedBonus'],['turns','Turns','turnsBonus'],['shields','Shields','shieldsBonus'],['armour','Armour','armourBonus'],['turret','Turret','turretBonus']];
+  var fields=[['speed','Speed','speedBonus','speedOverride'],['turns','Turns','turnsBonus','turnsOverride'],['shields','Shields','shieldsBonus','shieldsOverride'],['armour','Armour','armourBonus','armourOverride'],['turret','Turret','turretBonus','turretOverride']];
   var out=[];
   fields.forEach(function(f){
     var base=ship[f[0]];
     if(!base) return;
+    var override=entry?getEntryStatOverride(ship,entry,f[3]):null;
+    if(override){ out.push({label:f[1], value:override, boosted:true}); return; }
     var bonus=entry?getEntryStatBonus(ship,entry,f[2]):0;
     out.push({label:f[1], value:bonus?applyStatBonus(base,bonus):base, boosted:!!bonus});
   });

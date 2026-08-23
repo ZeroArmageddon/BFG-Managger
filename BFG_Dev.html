@@ -348,15 +348,17 @@ nav::-webkit-scrollbar{display:none;}
       <div class="fg"><label>Dobási érték</label><input type="number" id="refit-roll" value="1" min="1" placeholder="pl. 1, 2, 3..."></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="refit-desc" placeholder="Mit csinál ez a refit..."></textarea></div>
-    <div class="frow">
-      <div class="fg"><label>+HP</label><input type="number" id="refit-hits" value="0" step="1"></div>
-      <div class="fg"><label>+Shields</label><input type="number" id="refit-shields" value="0" step="1"></div>
-      <div class="fg"><label>+Speed</label><input type="number" id="refit-speed" value="0" step="1"></div>
-    </div>
-    <div class="frow">
-      <div class="fg"><label>+Turns</label><input type="number" id="refit-turns" value="0" step="1"></div>
-      <div class="fg"><label>+Armour <span style="color:var(--dim);font-size:.7rem;">(negatív jobb)</span></label><input type="number" id="refit-armour" value="0" step="1"></div>
-      <div class="fg"><label>+Turret</label><input type="number" id="refit-turret" value="0" step="1"></div>
+    <div class="fg"><label>Stat módosítás <span style="font-size:.7rem;color:var(--dim);">— vagy bónusz szám (hozzáadódik), VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot (pl. "6+ front / 5+")</span></label>
+      <div class="frow">
+        <div class="fg"><label style="font-size:.72rem;">+HP</label><input type="number" id="refit-hits" value="0" step="1"></div>
+        <div class="fg"><label style="font-size:.72rem;">Shields</label><input type="number" id="refit-shields" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-shields-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Speed</label><input type="number" id="refit-speed" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-speed-override" placeholder="vagy csere"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label style="font-size:.72rem;">Turns</label><input type="number" id="refit-turns" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-turns-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Armour <span style="color:var(--dim);">(negatív jobb)</span></label><input type="number" id="refit-armour" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-armour-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Turret</label><input type="number" id="refit-turret" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-turret-override" placeholder="vagy csere"></div>
+      </div>
     </div>
     <p style="color:var(--dim);font-size:.76rem;margin-bottom:.6rem;">A refitek nem kerülnek campaign pontba — a dobási értékkel a játékosok manuálisan jelölik meg, ha kidobták, a Campaign Fleet Builderben.</p>
     <div class="brow">
@@ -386,15 +388,17 @@ nav::-webkit-scrollbar{display:none;}
       <div class="fg"><label>Max db / hajó</label><input type="number" id="upgrade-max" value="1" min="1"></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="upgrade-desc" placeholder="Mit csinál ez az upgrade..."></textarea></div>
-    <div class="frow">
-      <div class="fg"><label>+HP</label><input type="number" id="upgrade-hits" value="0" step="1"></div>
-      <div class="fg"><label>+Shields</label><input type="number" id="upgrade-shields" value="0" step="1"></div>
-      <div class="fg"><label>+Speed</label><input type="number" id="upgrade-speed" value="0" step="1"></div>
-    </div>
-    <div class="frow">
-      <div class="fg"><label>+Turns</label><input type="number" id="upgrade-turns" value="0" step="1"></div>
-      <div class="fg"><label>+Armour <span style="color:var(--dim);font-size:.7rem;">(negatív jobb)</span></label><input type="number" id="upgrade-armour" value="0" step="1"></div>
-      <div class="fg"><label>+Turret</label><input type="number" id="upgrade-turret" value="0" step="1"></div>
+    <div class="fg"><label>Stat módosítás <span style="font-size:.7rem;color:var(--dim);">— vagy bónusz szám (hozzáadódik), VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot (pl. "6+ front / 5+")</span></label>
+      <div class="frow">
+        <div class="fg"><label style="font-size:.72rem;">+HP</label><input type="number" id="upgrade-hits" value="0" step="1"></div>
+        <div class="fg"><label style="font-size:.72rem;">Shields</label><input type="number" id="upgrade-shields" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-shields-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Speed</label><input type="number" id="upgrade-speed" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-speed-override" placeholder="vagy csere"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label style="font-size:.72rem;">Turns</label><input type="number" id="upgrade-turns" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-turns-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Armour <span style="color:var(--dim);">(negatív jobb)</span></label><input type="number" id="upgrade-armour" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-armour-override" placeholder="vagy csere"></div>
+        <div class="fg"><label style="font-size:.72rem;">Turret</label><input type="number" id="upgrade-turret" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-turret-override" placeholder="vagy csere"></div>
+      </div>
     </div>
     <button type="button" class="loc-check" id="upgrade-grant-toggle" style="border-color:var(--orange);">☐ Fegyvert ad</button>
     <div id="upgrade-weapon-fields" style="display:none;margin-top:.5rem;padding-top:.5rem;border-top:1px solid #2a2a3a;">
@@ -1083,6 +1087,19 @@ async function autoDetectReloadableGlobal(){
 // ============================================================
 // WARGEAR EDITOR
 // ============================================================
+// Shared UI piece for every stat bonus system (ship Wargear, campaign Refits,
+// campaign Upgrades): a numeric bonus PLUS an optional override text field.
+// Some effects genuinely can't be expressed as "+N to the number" — e.g. a
+// wargear that changes Armour to "6+ front / 5+" instead of a flat bonus.
+// If the override text is filled in, it completely REPLACES the stat instead
+// of adding to it; leave it blank to use the plain numeric bonus as before.
+function makeStatFieldPair(label, bonusClass, overrideClass, i, bonusVal, overrideVal, hint){
+  return '<div class="fg"><label style="font-size:.72rem;">'+label+(hint?' <span style="color:var(--dim);">'+hint+'</span>':'')+'</label>'
+    +'<div class="frow" style="gap:.3rem;">'
+    +'<input type="number" class="'+bonusClass+'" data-i="'+i+'" value="'+(bonusVal||0)+'" step="1" style="flex:1;min-width:60px;" placeholder="bónusz">'
+    +'<input type="text" class="'+overrideClass+'" data-i="'+i+'" value="'+esc(overrideVal||'')+'" style="flex:2;min-width:110px;" placeholder="vagy csere, pl. 6+ front/5+">'
+    +'</div></div>';
+}
 function makeWgHtml(wg, i) {
   var hpBonus = wg.hitsBonus||0;
   var grants = !!wg.grantsWeapon;
@@ -1093,21 +1110,22 @@ function makeWgHtml(wg, i) {
     return '<button type="button" class="loc-check wg-loc'+(checked?' checked':'')+'" data-i="'+i+'" data-loc="'+loc+'">'+loc+'</button>';
   }).join('');
   var statBadges=[];
-  if(wg.speedBonus) statBadges.push('Speed'+(wg.speedBonus>0?'+':'')+wg.speedBonus);
-  if(wg.turnsBonus) statBadges.push('Turns'+(wg.turnsBonus>0?'+':'')+wg.turnsBonus);
-  if(wg.shieldsBonus) statBadges.push('Shields'+(wg.shieldsBonus>0?'+':'')+wg.shieldsBonus);
-  if(wg.armourBonus) statBadges.push('Armour'+(wg.armourBonus>0?'+':'')+wg.armourBonus);
-  if(wg.turretBonus) statBadges.push('Turret'+(wg.turretBonus>0?'+':'')+wg.turretBonus);
+  if(wg.speedOverride) statBadges.push('Speed→'+wg.speedOverride); else if(wg.speedBonus) statBadges.push('Speed'+(wg.speedBonus>0?'+':'')+wg.speedBonus);
+  if(wg.turnsOverride) statBadges.push('Turns→'+wg.turnsOverride); else if(wg.turnsBonus) statBadges.push('Turns'+(wg.turnsBonus>0?'+':'')+wg.turnsBonus);
+  if(wg.shieldsOverride) statBadges.push('Shields→'+wg.shieldsOverride); else if(wg.shieldsBonus) statBadges.push('Shields'+(wg.shieldsBonus>0?'+':'')+wg.shieldsBonus);
+  if(wg.armourOverride) statBadges.push('Armour→'+wg.armourOverride); else if(wg.armourBonus) statBadges.push('Armour'+(wg.armourBonus>0?'+':'')+wg.armourBonus);
+  if(wg.turretOverride) statBadges.push('Turret→'+wg.turretOverride); else if(wg.turretBonus) statBadges.push('Turret'+(wg.turretBonus>0?'+':'')+wg.turretBonus);
   var statAdvancedBlock='';
   if(curAdvanced){
-    statAdvancedBlock='<div class="fg"><label>Stat növelés (Advanced) <span style="font-size:.7rem;color:var(--dim);">— a hajó Speed/Turns/Shields/Armour/Turret értékének számrészéhez adódik hozzá, a cm/° jelölés megmarad</span></label>'
+    statAdvancedBlock='<div class="fg"><label>Stat módosítás (Advanced) <span style="font-size:.7rem;color:var(--dim);">— vagy a hajó Speed/Turns/Shields/Armour/Turret számrészéhez adódik hozzá a bónusz, VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot</span></label>'
       +'<div class="frow">'
-      +'<div class="fg"><label style="font-size:.72rem;">Speed</label><input type="number" class="wg-speedbonus" data-i="'+i+'" value="'+(wg.speedBonus||0)+'" step="1"></div>'
-      +'<div class="fg"><label style="font-size:.72rem;">Turns</label><input type="number" class="wg-turnsbonus" data-i="'+i+'" value="'+(wg.turnsBonus||0)+'" step="1"></div>'
-      +'<div class="fg"><label style="font-size:.72rem;">Shields</label><input type="number" class="wg-shieldsbonus" data-i="'+i+'" value="'+(wg.shieldsBonus||0)+'" step="1"></div>'
+      +makeStatFieldPair('Speed','wg-speedbonus','wg-speedoverride',i,wg.speedBonus,wg.speedOverride)
+      +makeStatFieldPair('Turns','wg-turnsbonus','wg-turnsoverride',i,wg.turnsBonus,wg.turnsOverride)
       +'</div><div class="frow">'
-      +'<div class="fg"><label style="font-size:.72rem;">Armour <span style="color:var(--dim);">(negatív = jobb mentés)</span></label><input type="number" class="wg-armourbonus" data-i="'+i+'" value="'+(wg.armourBonus||0)+'" step="1"></div>'
-      +'<div class="fg"><label style="font-size:.72rem;">Turret</label><input type="number" class="wg-turretbonus" data-i="'+i+'" value="'+(wg.turretBonus||0)+'" step="1"></div>'
+      +makeStatFieldPair('Shields','wg-shieldsbonus','wg-shieldsoverride',i,wg.shieldsBonus,wg.shieldsOverride)
+      +makeStatFieldPair('Armour','wg-armourbonus','wg-armouroverride',i,wg.armourBonus,wg.armourOverride,'(negatív bónusz = jobb mentés)')
+      +'</div><div class="frow">'
+      +makeStatFieldPair('Turret','wg-turretbonus','wg-turretoverride',i,wg.turretBonus,wg.turretOverride)
       +'</div></div>';
   }
   return '<div class="wge2"><div class="wge2-hdr"><span class="wge2-nm">⚙️ '+esc(wg.name||'Névtelen')+(hpBonus?' <span style="color:var(--green);font-size:.7rem;">+'+hpBonus+'HP</span>':'')+(grants?' <span style="color:var(--orange);font-size:.7rem;">+fegyver</span>':'')+(statBadges.length?' <span style="color:#a07aee;font-size:.7rem;">'+esc(statBadges.join(', '))+'</span>':'')+'</span><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></div>'
@@ -1139,6 +1157,11 @@ function bindWgEvents(el, arr) {
   el.querySelectorAll('.wg-shieldsbonus').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].shieldsBonus=parseInt(inp.value)||0; renderWgInto(el,arr); }); });
   el.querySelectorAll('.wg-armourbonus').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].armourBonus=parseInt(inp.value)||0; renderWgInto(el,arr); }); });
   el.querySelectorAll('.wg-turretbonus').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].turretBonus=parseInt(inp.value)||0; renderWgInto(el,arr); }); });
+  el.querySelectorAll('.wg-speedoverride').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].speedOverride=inp.value.trim(); renderWgInto(el,arr); }); });
+  el.querySelectorAll('.wg-turnsoverride').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].turnsOverride=inp.value.trim(); renderWgInto(el,arr); }); });
+  el.querySelectorAll('.wg-shieldsoverride').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].shieldsOverride=inp.value.trim(); renderWgInto(el,arr); }); });
+  el.querySelectorAll('.wg-armouroverride').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].armourOverride=inp.value.trim(); renderWgInto(el,arr); }); });
+  el.querySelectorAll('.wg-turretoverride').forEach(function(inp){ inp.addEventListener('change',function(){ arr[+inp.dataset.i].turretOverride=inp.value.trim(); renderWgInto(el,arr); }); });
   el.querySelectorAll('.wg-grant-toggle').forEach(function(btn){ btn.addEventListener('click',function(){ var i=+btn.dataset.i; arr[i].grantsWeapon=!arr[i].grantsWeapon; if(arr[i].grantsWeapon&&!arr[i].weapon) arr[i].weapon={id:gid(),name:'',range:'',fp:'',arc:'',locations:[]}; renderWgInto(el,arr); }); });
   el.querySelectorAll('.wg-wpn-name').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].weapon.name=inp.value; }); });
   el.querySelectorAll('.wg-wpn-range').forEach(function(inp){ inp.addEventListener('input',function(){ arr[+inp.dataset.i].weapon.range=inp.value; }); });
@@ -1486,7 +1509,7 @@ get('dev-cmd-faction-filter').addEventListener('change',renderDevCmds);
 // ============================================================
 function clearRefitForm(){
   get('edit-refit-id').value='';
-  ['refit-name','refit-faction','refit-type','refit-desc'].forEach(function(id){get(id).value='';});
+  ['refit-name','refit-faction','refit-type','refit-desc','refit-speed-override','refit-turns-override','refit-shields-override','refit-armour-override','refit-turret-override'].forEach(function(id){get(id).value='';});
   ['refit-hits','refit-shields','refit-speed','refit-turns','refit-armour','refit-turret'].forEach(function(id){get(id).value='0';});
   get('refit-roll').value='1';
   get('refit-form-title').textContent='➕ Új Campaign Refit';
@@ -1501,6 +1524,9 @@ function startEditRefit(id){
   get('refit-hits').value=r.hitsBonus||0; get('refit-shields').value=r.shieldsBonus||0;
   get('refit-speed').value=r.speedBonus||0; get('refit-turns').value=r.turnsBonus||0;
   get('refit-armour').value=r.armourBonus||0; get('refit-turret').value=r.turretBonus||0;
+  get('refit-speed-override').value=r.speedOverride||''; get('refit-turns-override').value=r.turnsOverride||'';
+  get('refit-shields-override').value=r.shieldsOverride||''; get('refit-armour-override').value=r.armourOverride||'';
+  get('refit-turret-override').value=r.turretOverride||'';
   get('refit-form-title').textContent='✏️ '+r.name;
   get('btn-save-refit').textContent='💾 Mentés'; get('btn-cancel-refit').style.display='inline-flex';
 }
@@ -1512,7 +1538,10 @@ get('btn-save-refit').addEventListener('click',function(){
     desc:get('refit-desc').value,
     hitsBonus:parseInt(get('refit-hits').value)||0, shieldsBonus:parseInt(get('refit-shields').value)||0,
     speedBonus:parseInt(get('refit-speed').value)||0, turnsBonus:parseInt(get('refit-turns').value)||0,
-    armourBonus:parseInt(get('refit-armour').value)||0, turretBonus:parseInt(get('refit-turret').value)||0};
+    armourBonus:parseInt(get('refit-armour').value)||0, turretBonus:parseInt(get('refit-turret').value)||0,
+    speedOverride:get('refit-speed-override').value.trim(), turnsOverride:get('refit-turns-override').value.trim(),
+    shieldsOverride:get('refit-shields-override').value.trim(), armourOverride:get('refit-armour-override').value.trim(),
+    turretOverride:get('refit-turret-override').value.trim()};
   var eid=get('edit-refit-id').value;
   if(eid){var i=refits.findIndex(function(x){return x.id===eid;});if(i!==-1)refits[i]=Object.assign({id:eid},obj);}
   else{refits.push(Object.assign({id:gid()},obj));}
@@ -1534,11 +1563,11 @@ function renderRefits(){
       +'<div class="grid">'+items.map(function(r){
         var bonuses=[];
         if(r.hitsBonus)bonuses.push('+'+r.hitsBonus+'HP');
-        if(r.shieldsBonus)bonuses.push('Shields'+(r.shieldsBonus>0?'+':'')+r.shieldsBonus);
-        if(r.speedBonus)bonuses.push('Speed'+(r.speedBonus>0?'+':'')+r.speedBonus);
-        if(r.turnsBonus)bonuses.push('Turns'+(r.turnsBonus>0?'+':'')+r.turnsBonus);
-        if(r.armourBonus)bonuses.push('Armour'+(r.armourBonus>0?'+':'')+r.armourBonus);
-        if(r.turretBonus)bonuses.push('Turret'+(r.turretBonus>0?'+':'')+r.turretBonus);
+        if(r.shieldsOverride)bonuses.push('Shields→'+r.shieldsOverride); else if(r.shieldsBonus)bonuses.push('Shields'+(r.shieldsBonus>0?'+':'')+r.shieldsBonus);
+        if(r.speedOverride)bonuses.push('Speed→'+r.speedOverride); else if(r.speedBonus)bonuses.push('Speed'+(r.speedBonus>0?'+':'')+r.speedBonus);
+        if(r.turnsOverride)bonuses.push('Turns→'+r.turnsOverride); else if(r.turnsBonus)bonuses.push('Turns'+(r.turnsBonus>0?'+':'')+r.turnsBonus);
+        if(r.armourOverride)bonuses.push('Armour→'+r.armourOverride); else if(r.armourBonus)bonuses.push('Armour'+(r.armourBonus>0?'+':'')+r.armourBonus);
+        if(r.turretOverride)bonuses.push('Turret→'+r.turretOverride); else if(r.turretBonus)bonuses.push('Turret'+(r.turretBonus>0?'+':'')+r.turretBonus);
         return '<div class="sc purple"><div class="sc-hdr"><span class="sc-name purple">'+esc(r.name)+'</span><span class="badge bp-b">🎲'+r.roll+'</span></div>'
           +'<div class="sc-sub">'+esc(r.faction)+'</div>'
           +(bonuses.length?'<div style="font-size:.74rem;color:#a07aee;margin-bottom:.3rem;">'+esc(bonuses.join(', '))+'</div>':'')
@@ -1565,7 +1594,7 @@ get('upgrade-grant-toggle').addEventListener('click',function(){
 });
 function clearUpgradeForm(){
   get('edit-upgrade-id').value='';
-  ['upgrade-name','upgrade-faction','upgrade-desc','upgrade-wpn-name','upgrade-wpn-range','upgrade-wpn-fp','upgrade-wpn-arc'].forEach(function(id){get(id).value='';});
+  ['upgrade-name','upgrade-faction','upgrade-desc','upgrade-wpn-name','upgrade-wpn-range','upgrade-wpn-fp','upgrade-wpn-arc','upgrade-speed-override','upgrade-turns-override','upgrade-shields-override','upgrade-armour-override','upgrade-turret-override'].forEach(function(id){get(id).value='';});
   ['upgrade-cost','upgrade-hits','upgrade-shields','upgrade-speed','upgrade-turns','upgrade-armour','upgrade-turret'].forEach(function(id){get(id).value='0';});
   get('upgrade-max').value='1';
   upgradeGrantsWeapon=false;
@@ -1583,6 +1612,9 @@ function startEditUpgrade(id){
   get('upgrade-hits').value=u.hitsBonus||0; get('upgrade-shields').value=u.shieldsBonus||0;
   get('upgrade-speed').value=u.speedBonus||0; get('upgrade-turns').value=u.turnsBonus||0;
   get('upgrade-armour').value=u.armourBonus||0; get('upgrade-turret').value=u.turretBonus||0;
+  get('upgrade-speed-override').value=u.speedOverride||''; get('upgrade-turns-override').value=u.turnsOverride||'';
+  get('upgrade-shields-override').value=u.shieldsOverride||''; get('upgrade-armour-override').value=u.armourOverride||'';
+  get('upgrade-turret-override').value=u.turretOverride||'';
   upgradeGrantsWeapon=!!u.grantsWeapon;
   get('upgrade-grant-toggle').classList.toggle('checked',upgradeGrantsWeapon);
   get('upgrade-grant-toggle').textContent=upgradeGrantsWeapon?'✅ Fegyvert ad':'☐ Fegyvert ad';
@@ -1603,6 +1635,9 @@ get('btn-save-upgrade').addEventListener('click',function(){
     hitsBonus:parseInt(get('upgrade-hits').value)||0, shieldsBonus:parseInt(get('upgrade-shields').value)||0,
     speedBonus:parseInt(get('upgrade-speed').value)||0, turnsBonus:parseInt(get('upgrade-turns').value)||0,
     armourBonus:parseInt(get('upgrade-armour').value)||0, turretBonus:parseInt(get('upgrade-turret').value)||0,
+    speedOverride:get('upgrade-speed-override').value.trim(), turnsOverride:get('upgrade-turns-override').value.trim(),
+    shieldsOverride:get('upgrade-shields-override').value.trim(), armourOverride:get('upgrade-armour-override').value.trim(),
+    turretOverride:get('upgrade-turret-override').value.trim(),
     grantsWeapon:upgradeGrantsWeapon,
     weapon:upgradeGrantsWeapon?{id:gid(),name:get('upgrade-wpn-name').value.trim(),range:get('upgrade-wpn-range').value.trim(),fp:get('upgrade-wpn-fp').value.trim(),arc:get('upgrade-wpn-arc').value.trim(),locations:[]}:null};
   var eid=get('edit-upgrade-id').value;
@@ -1621,11 +1656,11 @@ function renderUpgrades(){
   el.innerHTML=list.map(function(u){
     var bonuses=[];
     if(u.hitsBonus)bonuses.push('+'+u.hitsBonus+'HP');
-    if(u.shieldsBonus)bonuses.push('Shields'+(u.shieldsBonus>0?'+':'')+u.shieldsBonus);
-    if(u.speedBonus)bonuses.push('Speed'+(u.speedBonus>0?'+':'')+u.speedBonus);
-    if(u.turnsBonus)bonuses.push('Turns'+(u.turnsBonus>0?'+':'')+u.turnsBonus);
-    if(u.armourBonus)bonuses.push('Armour'+(u.armourBonus>0?'+':'')+u.armourBonus);
-    if(u.turretBonus)bonuses.push('Turret'+(u.turretBonus>0?'+':'')+u.turretBonus);
+    if(u.shieldsOverride)bonuses.push('Shields→'+u.shieldsOverride); else if(u.shieldsBonus)bonuses.push('Shields'+(u.shieldsBonus>0?'+':'')+u.shieldsBonus);
+    if(u.speedOverride)bonuses.push('Speed→'+u.speedOverride); else if(u.speedBonus)bonuses.push('Speed'+(u.speedBonus>0?'+':'')+u.speedBonus);
+    if(u.turnsOverride)bonuses.push('Turns→'+u.turnsOverride); else if(u.turnsBonus)bonuses.push('Turns'+(u.turnsBonus>0?'+':'')+u.turnsBonus);
+    if(u.armourOverride)bonuses.push('Armour→'+u.armourOverride); else if(u.armourBonus)bonuses.push('Armour'+(u.armourBonus>0?'+':'')+u.armourBonus);
+    if(u.turretOverride)bonuses.push('Turret→'+u.turretOverride); else if(u.turretBonus)bonuses.push('Turret'+(u.turretBonus>0?'+':'')+u.turretBonus);
     var wpnTag=u.grantsWeapon&&u.weapon?'<div style="font-size:.72rem;color:var(--orange);margin-bottom:.3rem;">🔫 '+esc(u.weapon.name||'')+'</div>':'';
     return '<div class="sc"><div class="sc-hdr"><span class="sc-name">'+esc(u.name)+'</span><span class="badge bt-b">'+u.cost+' pt</span></div>'
       +'<div class="sc-sub">'+esc(u.faction)+' · max '+ (u.max||1) +'×</div>'
