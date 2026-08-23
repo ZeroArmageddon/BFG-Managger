@@ -164,11 +164,11 @@ nav::-webkit-scrollbar{display:none;}
     <input type="hidden" id="edit-ship-id">
     <div class="frow">
       <div class="fg"><label>Hajó neve *</label><input type="text" id="ship-name"></div>
-      <div class="fg"><label>Típus</label><input type="text" id="ship-type" placeholder="pl. Battleship, Cruiser"></div>
+      <div class="fg"><label>Típus</label><input type="text" id="ship-type" list="dl-ship-type" placeholder="pl. Battleship, Cruiser"><datalist id="dl-ship-type"></datalist></div>
     </div>
     <div class="frow">
-      <div class="fg"><label>Frakció *</label><input type="text" id="ship-faction" placeholder="pl. Imperial Navy"></div>
-      <div class="fg"><label>Al-frakció</label><input type="text" id="ship-subfaction" placeholder="pl. Battlefleet Obscurus"></div>
+      <div class="fg"><label>Frakció *</label><input type="text" id="ship-faction" list="dl-ship-faction" placeholder="pl. Imperial Navy"><datalist id="dl-ship-faction"></datalist></div>
+      <div class="fg"><label>Al-frakció</label><input type="text" id="ship-subfaction" list="dl-ship-subfaction" placeholder="pl. Battlefleet Obscurus"><datalist id="dl-ship-subfaction"></datalist></div>
     </div>
     <div class="frow">
       <div class="fg"><label>Pontérték *</label><input type="number" id="ship-points" min="0"></div>
@@ -290,8 +290,8 @@ nav::-webkit-scrollbar{display:none;}
       <div class="fg"><label>Pontérték *</label><input type="number" id="cmd-points" min="0"></div>
     </div>
     <div class="frow">
-      <div class="fg"><label>Frakció</label><input type="text" id="cmd-faction" placeholder="pl. Imperial Navy"></div>
-      <div class="fg"><label>Típus</label><input type="text" id="cmd-type" placeholder="pl. Admiral, Commodore"></div>
+      <div class="fg"><label>Frakció</label><input type="text" id="cmd-faction" list="dl-cmd-faction" placeholder="pl. Imperial Navy"><datalist id="dl-cmd-faction"></datalist></div>
+      <div class="fg"><label>Típus</label><input type="text" id="cmd-type" list="dl-cmd-type" placeholder="pl. Admiral, Commodore"><datalist id="dl-cmd-type"></datalist></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="cmd-desc" placeholder="Képességek, háttér..."></textarea></div>
     <div class="brow">
@@ -319,10 +319,10 @@ nav::-webkit-scrollbar{display:none;}
     <input type="hidden" id="edit-refit-id">
     <div class="frow">
       <div class="fg" style="flex:2;"><label>Refit neve *</label><input type="text" id="refit-name"></div>
-      <div class="fg"><label>Frakció *</label><input type="text" id="refit-faction" placeholder="pl. Imperial Navy"></div>
+      <div class="fg"><label>Frakció *</label><input type="text" id="refit-faction" list="dl-refit-faction" placeholder="pl. Imperial Navy"><datalist id="dl-refit-faction"></datalist></div>
     </div>
     <div class="frow">
-      <div class="fg"><label>Típus *</label><input type="text" id="refit-type" placeholder="pl. Hull, Engine, Weapon"></div>
+      <div class="fg"><label>Típus *</label><input type="text" id="refit-type" list="dl-refit-type" placeholder="pl. Hull, Engine, Weapon"><datalist id="dl-refit-type"></datalist></div>
       <div class="fg"><label>Dobási érték</label><input type="number" id="refit-roll" value="1" min="1" placeholder="pl. 1, 2, 3..."></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="refit-desc" placeholder="Mit csinál ez a refit..."></textarea></div>
@@ -357,7 +357,7 @@ nav::-webkit-scrollbar{display:none;}
     <input type="hidden" id="edit-upgrade-id">
     <div class="frow">
       <div class="fg" style="flex:2;"><label>Upgrade neve *</label><input type="text" id="upgrade-name"></div>
-      <div class="fg"><label>Frakció *</label><input type="text" id="upgrade-faction" placeholder="pl. Imperial Navy"></div>
+      <div class="fg"><label>Frakció *</label><input type="text" id="upgrade-faction" list="dl-upgrade-faction" placeholder="pl. Imperial Navy"><datalist id="dl-upgrade-faction"></datalist></div>
     </div>
     <div class="frow">
       <div class="fg"><label>Ár (campaign pont)</label><input type="number" id="upgrade-cost" value="0" min="0"></div>
@@ -1198,9 +1198,28 @@ get('btn-save-cmd').addEventListener('click',function(){
 // DEV LISTS
 // ============================================================
 function getUniq(arr, key) { var r=[]; arr.forEach(function(x){ var v=x[key]||''; if(v&&r.indexOf(v)<0) r.push(v); }); return r.sort(); }
+
+// Fills a <datalist> with unique existing values — gives free-text inputs
+// autocomplete-style suggestions (like ship-type, faction, subfaction) without
+// forcing selection; the field stays fully freely-typeable.
+function fillDatalist(id, vals){
+  var el=get(id); if(!el) return;
+  el.innerHTML=vals.map(function(v){return '<option value="'+esc(v)+'">';}).join('');
+}
+function refreshAutocompleteLists(){
+  fillDatalist('dl-ship-type', getUniq(ships,'type'));
+  fillDatalist('dl-ship-faction', getUniq(ships,'faction'));
+  fillDatalist('dl-ship-subfaction', getUniq(ships,'subfaction'));
+  fillDatalist('dl-cmd-faction', getUniq(commanders,'faction'));
+  fillDatalist('dl-cmd-type', getUniq(commanders,'type'));
+  fillDatalist('dl-refit-faction', getUniq(refits,'faction'));
+  fillDatalist('dl-refit-type', getUniq(refits,'type'));
+  fillDatalist('dl-upgrade-faction', getUniq(upgrades,'faction'));
+}
 function fillSelect(id, vals, cur) { var el=get(id); el.innerHTML='<option value="">'+el.options[0].text+'</option>'+vals.map(function(v){return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(v)+'</option>';}).join(''); el.value=cur||''; }
 
 function renderDevShips() {
+  refreshAutocompleteLists();
   var ff=get('dev-faction-filter').value, fsf=get('dev-subfaction-filter').value, ft=get('dev-type-filter').value, fpk=get('dev-package-filter').value;
   fillSelect('dev-faction-filter',    getUniq(ships,'faction'),    ff);
   fillSelect('dev-subfaction-filter', getUniq(ships,'subfaction'), fsf);
@@ -1238,6 +1257,7 @@ get('dev-type-filter').addEventListener('change',renderDevShips);
 get('dev-package-filter').addEventListener('change',renderDevShips);
 
 function renderDevCmds() {
+  refreshAutocompleteLists();
   var ff=get('dev-cmd-faction-filter').value;
   fillSelect('dev-cmd-faction-filter', getUniq(commanders,'faction'), ff);
   var list=ff?commanders.filter(function(c){return c.faction===ff;}):commanders;
@@ -1301,6 +1321,7 @@ get('btn-save-refit').addEventListener('click',function(){
   toast('✅ Refit mentve','var(--green)');
 });
 function renderRefits(){
+  refreshAutocompleteLists();
   var ff=get('refit-faction-filter').value;
   fillSelect('refit-faction-filter',getUniq(refits,'faction'),ff);
   var list=ff?refits.filter(function(r){return r.faction===ff;}):refits;
@@ -1392,6 +1413,7 @@ get('btn-save-upgrade').addEventListener('click',function(){
   toast('✅ Upgrade mentve','var(--green)');
 });
 function renderUpgrades(){
+  refreshAutocompleteLists();
   var ff=get('upgrade-faction-filter').value;
   fillSelect('upgrade-faction-filter',getUniq(upgrades,'faction'),ff);
   var list=ff?upgrades.filter(function(u){return u.faction===ff;}):upgrades;
