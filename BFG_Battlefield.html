@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Battlefleet Gothic — Battlefield Generator</title>
+<style>
+:root{--bg:#0a0a0f;--card:#12121a;--inp:#1a1a25;--gold:#c9a227;--gdim:#8a7019;--txt:#e0e0e0;--dim:#888;--red:#d94a4a;--green:#4ad97a;--purple:#7a4ad9;--pdim:#5a35a0;--orange:#d97a1a;--teal:#1a9a8a;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{overflow-x:hidden;max-width:100%;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;line-height:1.5;overflow-x:hidden;max-width:100vw;}
+nav{display:flex;align-items:center;background:var(--card);border-bottom:2px solid var(--gdim);position:sticky;top:0;z-index:200;height:52px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+nav::-webkit-scrollbar{display:none;}
+.logo{padding:0 1rem;color:var(--gold);font-weight:bold;font-size:.95rem;border-right:1px solid var(--gdim);height:100%;display:flex;align-items:center;white-space:nowrap;}
+.nav-links{display:flex;height:100%;}
+.nb{display:flex;align-items:center;padding:0 .9rem;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--dim);font-size:.88rem;cursor:pointer;height:100%;white-space:nowrap;text-decoration:none;transition:all .15s;}
+.nb:hover{color:var(--txt);}.nb.active{color:var(--gold);border-bottom-color:var(--gold);background:var(--inp);}
+.toast{position:sticky;top:52px;left:0;right:0;z-index:150;background:var(--card);border-bottom:2px solid var(--gold);padding:0 1rem;font-size:.85rem;font-weight:600;color:var(--txt);text-align:center;max-height:0;overflow:hidden;transition:max-height .25s cubic-bezier(.4,0,.2,1),padding .25s;}
+.toast.show{max-height:50px;padding:.65rem 1rem;}
+.wrap{max-width:1100px;margin:0 auto;padding:1rem;}
+.card{background:var(--card);border:1px solid var(--gdim);border-radius:8px;padding:1.1rem;margin-bottom:1rem;}
+.card h2{color:var(--gold);margin-bottom:.75rem;font-size:1.02rem;}
+.fg{margin-bottom:.72rem;}.fg label{display:block;margin-bottom:.25rem;color:var(--dim);font-size:.77rem;}
+.fg input,.fg select{width:100%;padding:.55rem .65rem;background:var(--inp);border:1px solid #333;color:var(--txt);border-radius:7px;font-size:.87rem;transition:border-color .15s;}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--gold);}
+.frow{display:flex;gap:.52rem;flex-wrap:wrap;}.frow .fg{flex:1;min-width:120px;}
+.btn{padding:.55rem 1rem;border:none;border-radius:8px;cursor:pointer;font-size:.84rem;font-weight:600;letter-spacing:.01em;transition:transform .15s cubic-bezier(.4,0,.2,1),box-shadow .15s cubic-bezier(.4,0,.2,1),background-color .15s,opacity .15s;display:inline-flex;align-items:center;gap:.28rem;box-shadow:0 1px 2px rgba(0,0,0,.35);}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.4);}
+.btn:active:not(:disabled){transform:translateY(0) scale(.96);}
+.bg{background:var(--gold);color:#0a0a0f;}
+.bgh{background:var(--inp);color:var(--txt);border:1px solid var(--gdim);}
+.bt{background:var(--teal);color:#fff;}
+.brow{display:flex;gap:.5rem;flex-wrap:wrap;}
+.legend{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;font-size:.78rem;}
+.legend-item{display:flex;align-items:center;gap:.35rem;background:var(--inp);padding:.25rem .55rem;border-radius:14px;}
+.legend-swatch{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.map-wrap{overflow:auto;border-radius:8px;border:1px solid var(--gdim);background:#050508;-webkit-overflow-scrolling:touch;}
+#detail-panel{margin-top:.8rem;padding:.8rem;background:var(--inp);border-radius:8px;border:1px solid var(--teal);display:none;}
+#detail-panel.show{display:block;}
+#detail-panel h3{color:#4ad9c9;font-size:.95rem;margin-bottom:.4rem;}
+#detail-panel .dp-row{font-size:.83rem;color:var(--txt);margin-bottom:.2rem;}
+#detail-panel .dp-row b{color:var(--dim);font-weight:normal;}
+.phenomenon{cursor:pointer;transition:filter .15s;}
+.phenomenon:hover{filter:brightness(1.35);}
+.sun-glow{opacity:.55;}
+@media(max-width:620px){.frow{flex-direction:column;}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">⚓ BFG</div>
+  <div class="nav-links">
+    <a class="nb" href="BFG_App.html">⚓ Fleet Builder</a>
+    <a class="nb" href="BFG_Dev.html">🔧 Developer</a>
+    <a class="nb" href="BFG_Rulebook.html">📖 Rulebook</a>
+    <a class="nb" href="BFG_Campaign.html">🌌 Campaign</a>
+    <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb active" href="BFG_Battlefield.html">🛰️ Csatatér</a>
+  </div>
+</nav>
+<div class="toast" id="toast"></div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>⚙️ Beállítások</h2>
+    <div class="frow">
+      <div class="fg"><label>Tábla szélessége (cm)</label><input type="number" id="table-w" value="180" min="60" step="10"></div>
+      <div class="fg"><label>Tábla mélysége (cm)</label><input type="number" id="table-h" value="120" min="60" step="10"></div>
+    </div>
+    <div id="grid-info" style="color:var(--dim);font-size:.78rem;margin-bottom:.7rem;"></div>
+    <div class="fg">
+      <label>Generátor (a naptól való távolság alapján)</label>
+      <select id="generator-select"></select>
+    </div>
+    <div class="brow">
+      <button class="btn bg" id="btn-generate">🎲 Csatatér generálása</button>
+      <button class="btn bgh" id="btn-reroll-sun">☀️ Nap iránya újradobása</button>
+    </div>
+    <div id="sun-info" style="color:var(--dim);font-size:.78rem;margin-top:.6rem;"></div>
+  </div>
+
+  <div class="card">
+    <h2>🗺️ Térkép <span style="color:var(--dim);font-size:.75rem;font-weight:normal;">— kattints egy jelenségre a részletekért</span></h2>
+    <div class="map-wrap" id="map-wrap"></div>
+    <div class="legend" id="legend"></div>
+    <div id="detail-panel"></div>
+  </div>
+
+  <div class="card">
+    <h2>📖 Méretezés <span style="color:var(--dim);font-size:.75rem;font-weight:normal;">— a rulebook alapján, dobással számolva minden generáláskor</span></h2>
+    <div style="font-size:.82rem;color:var(--dim);line-height:1.7;margin-bottom:.7rem;">
+      <div>🪨 <b style="color:var(--txt);">Aszteroida mező:</b> D3×5cm × D3×5cm (mindkét irány külön dobással)</div>
+      <div>☁️ <b style="color:var(--txt);">Gáz/por felhő:</b> D6×5cm × D6×2cm</div>
+      <div>🪐 <b style="color:var(--txt);">Bolygó átmérő:</b> Kicsi ≤15cm · Közepes 16-25cm · Nagy 26-50cm</div>
+      <div>🌙 <b style="color:var(--txt);">Holdak:</b> Közepes bolygónál D3-1, Nagynál D6-2 db, egyenként max 5cm, 2D6×10cm távolságra</div>
+      <div>💍 <b style="color:var(--txt);">Gyűrűk:</b> csak nagy bolygónál, D6-on 5-6 esetén, D3 gyűrű, egyenként D6cm széles</div>
+    </div>
+    <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--txt);cursor:pointer;margin-bottom:.7rem;">
+      <input type="checkbox" id="show-gravity-wells" checked style="width:15px;height:15px;">
+      Gravitációs mezők megjelenítése (halvány gyűrű a bolygók körül)
+    </label>
+    <div class="frow">
+      <div class="fg"><label>Napkitörés / Radioaktív kitörés sugár (cm)</label><input type="number" id="size-flare" value="8"></div>
+      <div class="fg"><label>Warp szakadék átmérő (cm)</label><input type="number" id="size-warprift" value="14"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function get(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function d6(){return Math.floor(Math.random()*6)+1;}
+function d3(){return Math.floor(Math.random()*3)+1;}
+
+// ============================================================
+// INDEXEDDB — same shared data store as the rest of the suite.
+// ============================================================
+var IDB_NAME='BFG_DB', IDB_STORE='kv', idbPromise=null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise=new Promise(function(resolve,reject){
+    if(!window.indexedDB){ reject(new Error('IndexedDB not supported')); return; }
+    var req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess=function(){ resolve(req.result); };
+    req.onerror=function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbGet(key){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess=function(){ resolve(req.result); };
+      req.onerror=function(){ reject(req.error); };
+    });
+  });
+}
+function idbSet(key,value){
+  return idbOpen().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(value,key);
+      tx.oncomplete=function(){ resolve(true); };
+      tx.onerror=function(){ reject(tx.error); };
+    });
+  }).catch(function(e){ console.error('idbSet failed for',key,e); return false; });
+}
+async function idbGetMigrated(key, fallback){
+  var v;
+  try{ v=await idbGet(key); }catch(e){ v=undefined; }
+  if(v!==undefined && v!==null) return v;
+  var raw=localStorage.getItem(key);
+  if(raw===null) return fallback;
+  var parsed;
+  try{ parsed=JSON.parse(raw); }catch(e){ return fallback; }
+  await idbSet(key,parsed);
+  return parsed;
+}
+function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderBottomColor=col||'var(--gold)';el.style.color=col||'var(--gold)';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
+
+// ============================================================
+// GENERATOR TABLES — transcribed from the uploaded rulebook pages.
+// Each entry: {result, note, planet:{sizing}} — "count" for D3-style
+// multiples is resolved at roll time.
+// ============================================================
+var GENERATORS = [
+  { id:1, name:'1. Flare Region Generator', table:{
+    1:{type:'flare',label:'Solar flare'},
+    2:{type:'flare',label:'Solar flare'},
+    3:{type:'radiation',label:'Radiation burst'},
+    4:{type:'asteroid',label:'Asteroid field',count:1},
+    5:{type:'gascloud',label:'D3 gas/dust clouds',note:'(generally a solar flare remnant)',count:'d3'},
+    6:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'medium'}}
+  }},
+  { id:2, name:'2. Mercurial Zone Generator', table:{
+    1:{type:'flare',label:'Solar flare'},
+    2:{type:'radiation',label:'Radiation burst'},
+    3:{type:'asteroid',label:'Asteroid field',count:1},
+    4:{type:'gascloud',label:'D3 gas/dust clouds',note:'(solar filaments or flare remnants)',count:'d3'},
+    5:{type:'gascloud',label:'D3 gas/dust clouds',note:'(solar filaments or flare remnants)',count:'d3'},
+    6:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'medium'}}
+  }},
+  { id:3, name:'3. Inner Biosphere Generator', table:{
+    1:{type:'reroll',label:'Roll again',note:'1-3 = Radiation burst, 4-6 = Solar flare',reroll:function(){var r=d6();return r<=3?{type:'radiation',label:'Radiation burst'}:{type:'flare',label:'Solar flare'};}},
+    2:{type:'asteroid',label:'Asteroid field',count:1},
+    3:{type:'asteroid',label:'D3 asteroid fields',count:'d3'},
+    4:{type:'gascloud',label:'D3 gas/dust clouds',count:'d3'},
+    5:{type:'gascloud',label:'D3 gas/dust clouds',count:'d3'},
+    6:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'medium'}}
+  }},
+  { id:4, name:'4. Primary Biosphere Generator', table:{
+    1:{type:'asteroid',label:'Asteroid field',count:1},
+    2:{type:'asteroid',label:'D3 asteroid fields',count:'d3'},
+    3:{type:'gascloud',label:'Gas/dust clouds',count:1},
+    4:{type:'gascloud',label:'D3 gas/dust clouds',count:'d3'},
+    5:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'medium'}},
+    6:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'medium'}}
+  }},
+  { id:5, name:'5. Outer Reaches Generator', table:{
+    1:{type:'asteroid',label:'D3+1 asteroid fields',count:'d3+1'},
+    2:{type:'asteroid',label:'D3 asteroid fields',count:'d3'},
+    3:{type:'gascloud',label:'D3 gas/dust clouds',count:'d3'},
+    4:{type:'gascloud',label:'Gas/dust cloud',count:1},
+    5:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'large',5:'large',6:'large'}},
+    6:{type:'planet',label:'Planet',planetTable:{1:'small',2:'small',3:'small',4:'large',5:'large',6:'large'}}
+  }},
+  { id:6, name:'6. Deep Space Generator', table:{
+    1:{type:'asteroid',label:'D3 asteroid fields',count:'d3'},
+    2:{type:'asteroid',label:'Asteroid fields',count:1},
+    3:{type:'gascloud',label:'D3 gas/dust clouds',count:'d3'},
+    4:{type:'gascloud',label:'Gas/dust cloud',count:1},
+    5:{type:'warprift',label:'Warp rift'},
+    6:{type:'planet',label:'Small planet',note:'(a rogue planet in a highly eccentric orbit)',planetTable:{1:'small',2:'small',3:'small',4:'small',5:'small',6:'small'}}
+  }}
+];
+var TYPE_COLORS={
+  flare:'#d97a1a', radiation:'#c9a227', asteroid:'#8a7019', gascloud:'#7a4ad9',
+  planet:'#4a90d9', warprift:'#d94ac9'
+};
+var TYPE_LABELS_HU={
+  flare:'Napkitörés', radiation:'Radioaktív kitörés', asteroid:'Aszteroida mező',
+  gascloud:'Gáz/por felhő', planet:'Bolygó', warprift:'Warp szakadék'
+};
+
+function fillGeneratorSelect(){
+  get('generator-select').innerHTML=GENERATORS.map(function(g){return '<option value="'+g.id+'">'+esc(g.name)+'</option>';}).join('');
+}
+
+function resolveCount(count){
+  if(count==='d3') return d3();
+  if(count==='d3+1') return d3()+1;
+  return count||1;
+}
+
+// ============================================================
+// SUN DIRECTION — which table edge is "sunward" for this battle.
+// 1-2 = one long edge, 3 = one short edge, 4 = other short edge, 5-6 = other long edge.
+// ============================================================
+var sunEdge='top'; // 'top'|'bottom'|'left'|'right'
+function rollSunDirection(){
+  var w=parseFloat(get('table-w').value)||180, h=parseFloat(get('table-h').value)||120;
+  var longIsHorizontal = w>=h; // top/bottom are the "long" edges when width is the bigger dimension
+  var r=d6();
+  var edge;
+  if(longIsHorizontal){
+    if(r<=2) edge='top';
+    else if(r===3) edge='left';
+    else if(r===4) edge='right';
+    else edge='bottom';
+  } else {
+    if(r<=2) edge='left';
+    else if(r===3) edge='top';
+    else if(r===4) edge='bottom';
+    else edge='right';
+  }
+  sunEdge=edge;
+  var edgeLabelsHu={top:'felső',bottom:'alsó',left:'bal',right:'jobb'};
+  get('sun-info').textContent='☀️ Nap iránya: '+edgeLabelsHu[edge]+' oldal (dobás: '+r+') — a hosszúkás jelenségek erre merőlegesen állnak fel, mintha a nap felé/onnan mutatnának.';
+}
+get('btn-reroll-sun').addEventListener('click',function(){ rollSunDirection(); if(currentPhenomena.length) renderMap(); });
+get('show-gravity-wells').addEventListener('change',function(){ if(currentPhenomena.length) renderMap(); });
+
+// ============================================================
+// GENERATION
+// ============================================================
+var CELL=60; // cm, per Method 2 rules
+var currentPhenomena=[]; // {type,label,note,x,y,w,h,shape,planetSize,hasRings,hasMoons}
+var selectedGeneratorId=1;
+
+function getSizes(){
+  return {
+    flareR: parseFloat(get('size-flare').value)||8,
+    warpriftD: parseFloat(get('size-warprift').value)||14
+  };
+}
+// Exact rulebook dice formulas
+function rollAsteroidSize(){ return {w:d3()*5, h:d3()*5}; } // both edges rolled independently
+function rollGasCloudSize(){ return {w:d6()*5, h:d6()*2}; }
+function rollPlanetDiameter(size){
+  if(size==='small') return Math.round(5+Math.random()*10);   // up to 15cm
+  if(size==='medium') return Math.round(16+Math.random()*9);  // 16-25cm
+  return Math.round(26+Math.random()*24);                     // large: 26-50cm
+}
+var GRAVITY_WELL={small:10,medium:15,large:30}; // cm, from planet template edge
+var MOON_D_MAX=5;
+
+function generateBattlefield(){
+  var w=parseFloat(get('table-w').value)||180, h=parseFloat(get('table-h').value)||120;
+  if(w<60) w=60; if(h<60) h=60;
+  get('table-w').value=w; get('table-h').value=h;
+  selectedGeneratorId=parseInt(get('generator-select').value);
+  var gen=GENERATORS.find(function(g){return g.id===selectedGeneratorId;});
+  rollSunDirection();
+  saveSettings();
+
+  var cols=Math.round(w/CELL), rows=Math.round(h/CELL);
+  if(cols<1) cols=1; if(rows<1) rows=1;
+  var sizes=getSizes();
+  var phenomena=[];
+  var planetAlreadyPlaced=false; // "max one planet on the tabletop — reroll if a second is generated"
+
+  for(var ry=0; ry<rows; ry++){
+    for(var cx=0; cx<cols; cx++){
+      if(d6()<4) continue; // needs a 4+ to contain a phenomenon
+      var cellX0=cx*CELL, cellY0=ry*CELL;
+      var entry=rollGeneratorEntry(gen, planetAlreadyPlaced);
+      if(!entry) continue; // was a duplicate-planet reroll that fizzled (extremely rare fallback)
+      if(entry.type==='planet') planetAlreadyPlaced=true;
+      placePhenomenon(phenomena, entry, cellX0, cellY0, sizes);
+    }
+  }
+  currentPhenomena=phenomena;
+  renderMap();
+  get('detail-panel').classList.remove('show');
+}
+
+// Resolves one D6 roll on a generator table, following "roll again" links,
+// and re-rolling if it would place a SECOND planet (rulebook: max one planet
+// on the tabletop per game).
+function rollGeneratorEntry(gen, planetAlreadyPlaced){
+  var tries=0;
+  while(tries<12){
+    tries++;
+    var r=d6();
+    var entry=gen.table[r];
+    if(entry.type==='reroll'){ entry=entry.reroll(); }
+    if(entry.type==='planet' && planetAlreadyPlaced){ continue; } // reroll per the rulebook footnote
+    return entry;
+  }
+  return null;
+}
+
+function placePhenomenon(list, entry, cellX0, cellY0, sizes){
+  var count = entry.count ? resolveCount(entry.count) : 1;
+  for(var i=0;i<count;i++){
+    var item={type:entry.type, label:entry.label, note:entry.note};
+    if(entry.type==='asteroid'){ var asz=rollAsteroidSize(); item.l=asz.w; item.w=asz.h; item.shape='rect'; }
+    else if(entry.type==='gascloud'){ var gsz=rollGasCloudSize(); item.l=gsz.w; item.w=gsz.h; item.shape='ellipse'; }
+    else if(entry.type==='flare'){ item.d=sizes.flareR*2; item.shape='circle'; }
+    else if(entry.type==='radiation'){ item.d=sizes.flareR*2; item.shape='circle'; }
+    else if(entry.type==='warprift'){ item.d=sizes.warpriftD; item.shape='circle'; }
+    else if(entry.type==='planet'){
+      var pr=d6();
+      var size=entry.planetTable[pr];
+      item.planetSize=size;
+      item.d=rollPlanetDiameter(size);
+      item.shape='circle';
+      item.gravityWell=GRAVITY_WELL[size];
+      // Moons: medium = D3-1 (0-2), large = D6-2 (0-4), small planets have none.
+      // Each moon: up to 5cm diameter, placed 2D6x10cm from the planet at a random angle.
+      var moonCount = size==='medium' ? Math.max(0,d3()-1) : size==='large' ? Math.max(0,d6()-2) : 0;
+      item.moons=[];
+      for(var mi=0; mi<moonCount; mi++){
+        item.moons.push({ d: Math.round(2+Math.random()*3), dist:(d6()+d6())*10, angle:Math.random()*Math.PI*2 });
+      }
+      // Rings: only large planets, D6 roll of 5-6. D3 rings, each D6cm wide,
+      // type 1-4=gas/dust 5-6=asteroid, starting D6x5cm from the planet's edge.
+      if(size==='large' && d6()>=5){
+        var ringCount=d3();
+        item.rings=[];
+        for(var ri=0; ri<ringCount; ri++){
+          item.rings.push({ type: d6()<=4?'gascloud':'asteroid', width:d6(), offset:d6()*5 });
+        }
+      }
+    }
+    // random jitter placement within the 60cm cell, keeping the shape's bounding box inside
+    var boundW = item.l||item.d||10, boundH = item.w||item.d||10;
+    var maxJx=Math.max(0, CELL-boundW), maxJy=Math.max(0, CELL-boundH);
+    var jx=Math.random()*maxJx, jy=Math.random()*maxJy;
+    item.x = cellX0+jx; item.y = cellY0+jy;
+    // Elongated phenomena face their WIDE side toward the sun edge (the wide
+    // edge runs parallel to the sunward table edge, like a wall facing it),
+    // with a small random tilt per instance so a cluster of D3 fields in the
+    // same cell doesn't look like identical stamped copies.
+    if(item.shape==='rect' || item.shape==='ellipse'){
+      item.rotated = (sunEdge==='left'||sunEdge==='right');
+      item.tilt = (Math.random()*30)-15; // ±15° individual variation
+    }
+    list.push(item);
+  }
+}
+get('btn-generate').addEventListener('click',generateBattlefield);
+
+// ============================================================
+// MAP RENDERING (SVG) — faint 60cm grid + sun-edge highlight + phenomena.
+// ============================================================
+var PX_PER_CM=3;
+function renderMap(){
+  var w=parseFloat(get('table-w').value)||180, h=parseFloat(get('table-h').value)||120;
+  var cols=Math.round(w/CELL), rows=Math.round(h/CELL);
+  get('grid-info').textContent='📐 '+w+'×'+h+' cm ≈ '+cols+'×'+rows+' darab 60cm-es mező ('+(cols*rows)+' összesen)';
+
+  var svgW=w*PX_PER_CM, svgH=h*PX_PER_CM;
+  var svg='<svg width="'+svgW+'" height="'+svgH+'" viewBox="0 0 '+w+' '+h+'" style="display:block;background:#050508;">';
+
+  // subtle starfield texture — CSS-free, pure SVG, no external image
+  svg+='<defs><pattern id="stars" width="40" height="40" patternUnits="userSpaceOnUse">'
+    +'<circle cx="4" cy="6" r="0.4" fill="#ffffff" opacity="0.5"/>'
+    +'<circle cx="20" cy="18" r="0.3" fill="#ffffff" opacity="0.35"/>'
+    +'<circle cx="33" cy="9" r="0.5" fill="#ffffff" opacity="0.4"/>'
+    +'<circle cx="12" cy="30" r="0.3" fill="#ffffff" opacity="0.3"/>'
+    +'<circle cx="28" cy="35" r="0.4" fill="#ffffff" opacity="0.45"/>'
+    +'</pattern>'
+    +'<radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">'
+    +'<stop offset="0%" stop-color="#c9a227" stop-opacity="0.45"/>'
+    +'<stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>'
+    +'</radialGradient></defs>';
+  svg+='<rect x="0" y="0" width="'+w+'" height="'+h+'" fill="url(#stars)"/>';
+
+  // faint 60cm grid
+  for(var gx=0; gx<=w; gx+=CELL){ svg+='<line x1="'+gx+'" y1="0" x2="'+gx+'" y2="'+h+'" stroke="#2a2a3a" stroke-width="0.4"/>'; }
+  for(var gy=0; gy<=h; gy+=CELL){ svg+='<line x1="0" y1="'+gy+'" x2="'+w+'" y2="'+gy+'" stroke="#2a2a3a" stroke-width="0.4"/>'; }
+
+  // sun-edge highlight glow
+  var glowThick=Math.min(w,h)*0.18;
+  if(sunEdge==='top') svg+='<rect x="0" y="0" width="'+w+'" height="'+glowThick+'" fill="url(#sunGlow)" class="sun-glow"/>';
+  if(sunEdge==='bottom') svg+='<rect x="0" y="'+(h-glowThick)+'" width="'+w+'" height="'+glowThick+'" fill="url(#sunGlow)" class="sun-glow"/>';
+  if(sunEdge==='left') svg+='<rect x="0" y="0" width="'+glowThick+'" height="'+h+'" fill="url(#sunGlow)" class="sun-glow"/>';
+  if(sunEdge==='right') svg+='<rect x="'+(w-glowThick)+'" y="0" width="'+glowThick+'" height="'+h+'" fill="url(#sunGlow)" class="sun-glow"/>';
+  var sunLabelPos={top:[w/2,10],bottom:[w/2,h-6],left:[10,h/2],right:[w-10,h/2]}[sunEdge];
+  svg+='<text x="'+sunLabelPos[0]+'" y="'+sunLabelPos[1]+'" fill="var(--gold)" font-size="7" text-anchor="middle" opacity="0.85">☀️ NAP IRÁNYA</text>';
+
+  // phenomena
+  currentPhenomena.forEach(function(item,i){
+    var color=TYPE_COLORS[item.type]||'#888';
+    if(item.shape==='rect'){
+      var rw=item.rotated?item.w:item.l, rh=item.rotated?item.l:item.w;
+      var rcx=item.x+rw/2, rcy=item.y+rh/2;
+      svg+='<rect class="phenomenon" data-i="'+i+'" x="'+item.x+'" y="'+item.y+'" width="'+rw+'" height="'+rh+'" rx="1.5" fill="'+color+'" fill-opacity="0.55" stroke="'+color+'" stroke-width="0.6" transform="rotate('+(item.tilt||0)+' '+rcx+' '+rcy+')"/>';
+    } else if(item.shape==='ellipse'){
+      var erx=(item.rotated?item.w:item.l)/2, ery=(item.rotated?item.l:item.w)/2;
+      var ecx=item.x+erx, ecy=item.y+ery;
+      svg+='<ellipse class="phenomenon" data-i="'+i+'" cx="'+ecx+'" cy="'+ecy+'" rx="'+erx+'" ry="'+ery+'" fill="'+color+'" fill-opacity="0.5" stroke="'+color+'" stroke-width="0.6" transform="rotate('+(item.tilt||0)+' '+ecx+' '+ecy+')"/>';
+    } else if(item.shape==='circle'){
+      var r=item.d/2;
+      var cx=item.x+r, cy=item.y+r;
+      if(item.type==='planet' && item.gravityWell && get('show-gravity-wells').checked){
+        svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+item.gravityWell)+'" fill="none" stroke="var(--teal)" stroke-width="0.4" stroke-dasharray="2,2" opacity="0.45"/>';
+      }
+      if(item.rings&&item.rings.length){
+        var cumOffset=0;
+        item.rings.forEach(function(ring){
+          var innerR=r+ring.offset, outerR=innerR+ring.width, midR=(innerR+outerR)/2;
+          var ringColor=TYPE_COLORS[ring.type];
+          svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+midR+'" fill="none" stroke="'+ringColor+'" stroke-width="'+ring.width+'" opacity="0.4"/>';
+        });
+      }
+      svg+='<circle class="phenomenon" data-i="'+i+'" cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+color+'" fill-opacity="'+(item.type==='planet'?0.85:0.45)+'" stroke="'+color+'" stroke-width="0.6"/>';
+      if(item.moons&&item.moons.length){
+        item.moons.forEach(function(moon){
+          var mx=cx+Math.cos(moon.angle)*moon.dist, my=cy+Math.sin(moon.angle)*moon.dist;
+          svg+='<circle cx="'+mx+'" cy="'+my+'" r="'+(moon.d/2)+'" fill="'+color+'" opacity="0.75" stroke="'+color+'" stroke-width="0.3"/>';
+        });
+      }
+    }
+  });
+
+  svg+='</svg>';
+  get('map-wrap').innerHTML=svg;
+
+  get('map-wrap').querySelectorAll('.phenomenon').forEach(function(el){
+    el.addEventListener('click',function(){ showDetail(currentPhenomena[+el.dataset.i]); });
+  });
+
+  renderLegend();
+}
+
+function renderLegend(){
+  var typesUsed={};
+  currentPhenomena.forEach(function(p){ typesUsed[p.type]=true; });
+  var html=Object.keys(typesUsed).map(function(t){
+    return '<span class="legend-item"><span class="legend-swatch" style="background:'+TYPE_COLORS[t]+';"></span>'+TYPE_LABELS_HU[t]+'</span>';
+  }).join('');
+  get('legend').innerHTML=html||'<span style="color:var(--dim);font-size:.8rem;">Még nincs generálva csatatér.</span>';
+}
+
+function showDetail(item){
+  var el=get('detail-panel');
+  var rows='';
+  rows+='<div class="dp-row"><b>Típus:</b> '+esc(TYPE_LABELS_HU[item.type])+'</div>';
+  if(item.shape==='rect'||item.shape==='ellipse'){
+    rows+='<div class="dp-row"><b>Méret:</b> '+item.l+' × '+item.w+' cm'+(item.rotated?' (elforgatva, hogy a széles oldala nézzen a nap felé)':' (széles oldala a nap felé néz)')+'</div>';
+  } else if(item.type==='planet'){
+    var sizeLabelHu={small:'kicsi',medium:'közepes',large:'nagy'}[item.planetSize];
+    rows+='<div class="dp-row"><b>Méret:</b> '+esc(sizeLabelHu)+' (⌀ '+item.d+' cm)</div>';
+    rows+='<div class="dp-row"><b>Gravitációs mező:</b> +'+item.gravityWell+' cm a bolygó szélétől</div>';
+    if(item.moons&&item.moons.length){
+      rows+='<div class="dp-row"><b>Holdak:</b> '+item.moons.length+' db — '+item.moons.map(function(m){return '⌀'+m.d+'cm ('+m.dist+'cm távolságra)';}).join(', ')+'</div>';
+    } else {
+      rows+='<div class="dp-row"><b>Holdak:</b> nincs</div>';
+    }
+    if(item.rings&&item.rings.length){
+      rows+='<div class="dp-row"><b>Gyűrűk:</b> '+item.rings.length+' db — '+item.rings.map(function(r){return TYPE_LABELS_HU[r.type]+' jellegű, '+r.width+'cm széles';}).join(', ')+'</div>';
+    } else if(item.planetSize==='large'){
+      rows+='<div class="dp-row"><b>Gyűrűk:</b> nincs</div>';
+    }
+  } else if(item.d){
+    rows+='<div class="dp-row"><b>Méret:</b> ⌀ '+item.d+' cm</div>';
+  }
+  if(item.note) rows+='<div class="dp-row" style="color:var(--dim);font-size:.78rem;margin-top:.3rem;">'+esc(item.note)+'</div>';
+  el.innerHTML='<h3>'+esc(item.label)+'</h3>'+rows;
+  el.classList.add('show');
+}
+
+// ============================================================
+// INIT — remembers the last-used table size / generator, like the rest of the suite.
+// ============================================================
+function saveSettings(){
+  idbSet('bfg_battlefield_settings',{
+    w:parseFloat(get('table-w').value)||180,
+    h:parseFloat(get('table-h').value)||120,
+    generatorId:parseInt(get('generator-select').value)||1,
+    showGravityWells:get('show-gravity-wells').checked
+  });
+}
+async function initPage(){
+  fillGeneratorSelect();
+  var saved=await idbGetMigrated('bfg_battlefield_settings',null);
+  if(saved){
+    get('table-w').value=saved.w||180;
+    get('table-h').value=saved.h||120;
+    get('generator-select').value=saved.generatorId||1;
+    get('show-gravity-wells').checked=saved.showGravityWells!==false;
+  }
+  rollSunDirection();
+  renderMap();
+}
+get('table-w').addEventListener('change',function(){ get('grid-info').textContent=''; saveSettings(); });
+get('table-h').addEventListener('change',function(){ get('grid-info').textContent=''; saveSettings(); });
+get('generator-select').addEventListener('change',saveSettings);
+get('show-gravity-wells').addEventListener('change',saveSettings);
+initPage();
+</script>
+</body>
+</html>

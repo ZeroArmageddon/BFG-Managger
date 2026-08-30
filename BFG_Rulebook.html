@@ -58,7 +58,8 @@ nav::-webkit-scrollbar{display:none;}
 #entry-content-editable:empty:before{content:attr(data-placeholder);color:#555;font-style:italic;}
 .entry-acts{display:flex;gap:.35rem;margin-top:.55rem;}
 .status{font-size:.8rem;padding:.36rem .58rem;border-radius:4px;background:var(--inp);margin-bottom:.72rem;}
-.toast{position:fixed;bottom:1.1rem;right:1.1rem;padding:.55rem .95rem;border-radius:6px;font-size:.83rem;font-weight:bold;background:var(--card);border:1px solid var(--gdim);color:var(--txt);z-index:999;display:none;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.toast{position:sticky;top:52px;left:0;right:0;z-index:150;background:var(--card);border-bottom:2px solid var(--gold);padding:0 1rem;font-size:.85rem;font-weight:600;color:var(--txt);text-align:center;max-height:0;overflow:hidden;transition:max-height .25s cubic-bezier(.4,0,.2,1),padding .25s;}
+.toast.show{max-height:50px;padding:.65rem 1rem;}
 .toast.show{display:block;}
 .empty{text-align:center;padding:1.8rem 1rem;color:var(--dim);}.empty-icon{font-size:1.75rem;margin-bottom:.42rem;}
 .notice{background:#1a1a0a;border:1px solid #b87a1a;color:#e8a040;padding:.55rem .8rem;border-radius:5px;font-size:.83rem;margin-bottom:.8rem;}
@@ -75,6 +76,7 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb active" href="BFG_Rulebook.html">📖 Rulebook</a>
     <a class="nb" href="BFG_Campaign.html">🌌 Campaign</a>
     <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb" href="BFG_Battlefield.html">🛰️ Csatatér</a>
   </div>
 </nav>
 <div class="toast" id="toast"></div>
@@ -216,7 +218,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function get(id){return document.getElementById(id);}
 function dl(content,name){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'}));a.download=name;a.click();URL.revokeObjectURL(a.href);}
 function fname(s){return s.replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_');}
-function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderColor=col||'var(--gold)';el.style.color=col||'var(--gold)';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
+function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderBottomColor=col||'var(--gold)';el.style.color=col||'var(--gold)';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
 
 // normalization — ignore weapon-location words when matching
 function stripLocations(name){return String(name||'').replace(/\b(Port|Starboard|Dorsal|Prow|Thorax)\b/gi,'').replace(/\s+/g,' ').trim();}

@@ -100,6 +100,7 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb" href="BFG_Rulebook.html">📖 Rulebook</a>
     <a class="nb" href="BFG_Campaign.html">🌌 Campaign</a>
     <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb" href="BFG_Battlefield.html">🛰️ Csatatér</a>
   </div>
 </nav>
 <div class="tab-bar">
@@ -108,6 +109,7 @@ nav::-webkit-scrollbar{display:none;}
   <button class="ctab" data-tab="commanders">👑 Commanderek</button>
   <button class="ctab" data-tab="refits">🎲 Refitek</button>
   <button class="ctab" data-tab="upgrades">🛠️ Upgrade-ek</button>
+  <button class="ctab" data-tab="crittables">💥 Crit Táblák</button>
 </div>
 <div class="toast" id="toast"></div>
 <div class="wrap">
@@ -120,11 +122,6 @@ nav::-webkit-scrollbar{display:none;}
     <div class="status" id="load-status">⏳ Adatok keresése...</div>
     <div id="load-status-detail"></div>
     <div class="status" id="storage-status" style="color:var(--dim);">💾 Böngésző tárhely: számolás...</div>
-    <p style="color:var(--dim);font-size:.78rem;margin-bottom:.65rem;">
-      <b style="color:var(--gold);">Helyi:</b> localStorage-ban maradnak. Exportáld → töltsd fel a <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/ships/</code> és <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/commanders/</code> mappákba.<br>
-      <b style="color:var(--gold);">GitHub Pages:</b> <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/manifest.json</code> alapján tölt be.<br>
-      <b style="color:var(--orange);">Unofficial hajók:</b> a <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/unofficial_manifest.json</code> a <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/manifest.json</code> mellé kerül (nem a mappán belülre!) — ugyanúgy, ahogy a manifest.json is a <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/ships/</code> mappa mellett ül. A hajó .txt fájlok viszont a <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">data/unofficial_ships/</code> mappába kerülnek. Formátum: <code style="background:var(--inp);padding:.02rem .22rem;border-radius:2px;">{"unofficial_ships": [...]}</code>
-    </p>
     <div class="brow" style="margin-bottom:.45rem;">
       <b style="color:var(--gold);font-size:.8rem;align-self:center;">📤 Hivatalos Export:</b>
       <button class="btn bgh bsm" id="btn-exp-ships">⬇️ Hajók .txt</button>
@@ -152,6 +149,7 @@ nav::-webkit-scrollbar{display:none;}
     <div class="brow" style="margin-top:.5rem;">
       <button class="btn bp bsm" id="btn-exp-refits">⬇️ refits.json</button>
       <button class="btn bt bsm" id="btn-exp-upgrades">⬇️ upgrades.json</button>
+      <button class="btn bd bsm" id="btn-exp-crittables">⬇️ crit_tables.json</button>
       <span style="font-size:.73rem;color:var(--dim);align-self:center;">Campaign refit/upgrade katalógus — tedd a data/ mappa gyökerébe, hogy minden kampány-oldal betöltse.</span>
     </div>
     <div class="brow" style="margin-top:.5rem;">
@@ -186,13 +184,11 @@ nav::-webkit-scrollbar{display:none;}
     <hr class="divider" style="border-top-color:var(--pdim);">
     <button type="button" class="loc-check checked" id="ship-advanced-toggle" style="border-color:var(--purple);">✅ Advanced mód</button>
     <button type="button" class="loc-check" id="ship-dreadnought-toggle" style="border-color:var(--red);">☐ Dreadnought (4 szegmens)</button>
-    <p style="color:var(--dim);font-size:.72rem;margin:.35rem 0 0;">Dreadnought módban minden fegyvernél megjelenik egy Szegmens választó (Prow/Starboard/Aft/Port/Spine), és két extra fegyver-elhelyezés (Aft, Spine) valamint egy extra Fire Arc (Rear) is elérhető lesz.</p>
     <div id="dreadnought-hp-panel" style="display:none;margin-top:.55rem;padding:.6rem;background:var(--inp);border-radius:6px;border:1px solid var(--red);">
-      <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.5rem;">Szegmensenkénti statok <span style="color:var(--dim);">— mintha 4 külön hajó lenne: mindegyik szegmensnek saját, egymástól független Hull Pointja, Shields-je, Armourja és Turretje van csata módban. (A Speed/Turns hajószintű marad, hiszen egybefüggő test mozog.)</span></label>
+      <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.5rem;">Szegmensenkénti statok</label>
       <div id="segment-stat-grid"></div>
     </div>
     <div id="advanced-panel" style="display:block;margin-top:.6rem;">
-      <p style="color:var(--dim);font-size:.76rem;margin-bottom:.5rem;">Strukturált statok — ha kitöltöd, ezek jelennek meg a leírásban (ebben a sorrendben), a szabad szöveges Statisztikák mező alatt/felett kiegészítésként.</p>
       <div class="frow">
         <div class="fg"><label>Speed</label><input type="text" id="ship-speed" list="dl-ship-speed" placeholder="pl. 20cm"><datalist id="dl-ship-speed"></datalist></div>
         <div class="fg"><label>Turns</label><input type="text" id="ship-turns" list="dl-ship-turns" placeholder="pl. 45°"><datalist id="dl-ship-turns"></datalist></div>
@@ -222,21 +218,19 @@ nav::-webkit-scrollbar{display:none;}
         </label>
         <input type="range" id="maxdim-slider" min="200" max="1400" step="50" value="800" style="width:100%;">
         <p style="font-size:.76rem;margin-top:.5rem;">Végeredmény: <span id="quality-size-badge" style="color:var(--teal);font-weight:bold;font-size:.9rem;"></span></p>
-        <p style="font-size:.72rem;color:var(--dim);margin-top:.3rem;">A felbontás csökkentése jellemzően sokkal többet spórol, mint a minőség állítása — egy 400px-es kép a pixelek negyedét tartalmazza egy 800px-eshez képest. Mindkettő mindig az eredeti feltöltött képből számol újra, nem az előző tömörítésből.</p>
-      </div>
+        </div>
       <div id="bg-removal-panel" style="display:none;margin-top:.5rem;padding:.6rem;background:var(--inp);border-radius:5px;border:1px solid #2a2a3a;">
         <button type="button" class="loc-check bg-removal-toggle" id="bg-removal-toggle" style="border-color:var(--teal);">☐ Háttér eltávolítása (kísérleti)</button>
         <div id="bg-removal-controls" style="display:none;margin-top:.5rem;">
           <label style="font-size:.76rem;color:var(--dim);display:block;margin-bottom:.3rem;">
             Érzékenység: <span id="bg-threshold-val">45</span>
-            <span style="font-size:.7rem;">(alacsonyabb = csak a háttérrel majdnem pontosan egyező pixelek tűnnek el, magasabb = távolabbi árnyalatok is)</span>
           </label>
           <input type="range" id="bg-threshold" min="10" max="150" value="45" style="width:100%;">
           <label style="display:flex;align-items:center;gap:.4rem;margin-top:.6rem;font-size:.78rem;color:var(--txt);cursor:pointer;">
             <input type="checkbox" id="bg-autocrop-toggle" checked style="width:15px;height:15px;">
             ✂️ Automatikus körbevágás a tartalomhoz (levágja az üres átlátszó szegélyt)
           </label>
-          <p style="font-size:.72rem;color:var(--dim);margin-top:.35rem;">A háttér színét a kép sarkaiból méri — világos ÉS sötét háttérrel is működik. A körvonalak megállítják a törlést, így a hajón belüli világos/sötét részek biztonságban vannak. <b style="color:var(--teal);">Ha egy elszigetelt folt mégis megmarad valahol a kép belsejében: kattints rá közvetlenül a képen</b>, és csak azt a foltot távolítja el, semmi mást.</p>
+          
         </div>
       </div>
     </div>
@@ -247,7 +241,6 @@ nav::-webkit-scrollbar{display:none;}
     <div class="fg" id="ship-package-wrap" style="display:none;margin-top:.5rem;">
       <label>Csomag neve *</label>
       <input type="text" id="ship-package" placeholder="pl. Chaos Expansion Pack v2, Rogue Traders Fleet Pack">
-      <p style="color:var(--dim);font-size:.74rem;margin-top:.25rem;">Az azonos csomagnevű hajók egy csoportba kerülnek a Fleet Builderben.</p>
     </div>
 
     <!-- WEAPONS -->
@@ -271,7 +264,6 @@ nav::-webkit-scrollbar{display:none;}
         <span style="color:#a07aee;font-weight:bold;font-size:.9rem;">🎯 Fegyver Csoportok (Advanced)</span>
         <button class="btn bp bsm" id="btn-add-wgroup">+ Csoport hozzáadása</button>
       </div>
-      <p style="color:var(--dim);font-size:.76rem;margin-bottom:.5rem;">Egy csoportban több fegyver-típus közül lehet választani, közös darabszám-limittel — pl. "Prow" csoport, limit 2, 3 lehetséges fegyverrel: bármilyen kombináció választható amíg összesen ≤2 db.</p>
       <div id="wgroup-list"></div>
     </div>
 
@@ -289,7 +281,6 @@ nav::-webkit-scrollbar{display:none;}
       <span style="color:#4ad9c9;font-weight:bold;font-size:.9rem;">🔀 Variációk</span>
       <button class="btn bt bsm" id="btn-add-variant">+ Variáció hozzáadása</button>
     </div>
-    <p style="color:var(--dim);font-size:.77rem;margin-bottom:.55rem;">Minden variáció teljesen felülírja az alap hajó adatait (stats, HP, pts, fegyverek). A szerkesztőben 1 variáció választható egyszerre.</p>
     <div id="variant-list"></div>
 
     <hr class="divider">
@@ -361,7 +352,7 @@ nav::-webkit-scrollbar{display:none;}
       <div class="fg"><label>Dobási érték</label><input type="number" id="refit-roll" value="1" min="1" placeholder="pl. 1, 2, 3..."></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="refit-desc" placeholder="Mit csinál ez a refit..."></textarea></div>
-    <div class="fg"><label>Stat módosítás <span style="font-size:.7rem;color:var(--dim);">— vagy bónusz szám (hozzáadódik), VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot (pl. "6+ front / 5+")</span></label>
+    <div class="fg"><label>Stat módosítás</label>
       <div class="frow">
         <div class="fg"><label style="font-size:.72rem;">+HP</label><input type="number" id="refit-hits" value="0" step="1"></div>
         <div class="fg"><label style="font-size:.72rem;">Shields</label><input type="number" id="refit-shields" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-shields-override" placeholder="vagy csere"></div>
@@ -373,7 +364,6 @@ nav::-webkit-scrollbar{display:none;}
         <div class="fg"><label style="font-size:.72rem;">Turret</label><input type="number" id="refit-turret" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="refit-turret-override" placeholder="vagy csere"></div>
       </div>
     </div>
-    <p style="color:var(--dim);font-size:.76rem;margin-bottom:.6rem;">A refitek nem kerülnek campaign pontba — a dobási értékkel a játékosok manuálisan jelölik meg, ha kidobták, a Campaign Fleet Builderben.</p>
     <div class="brow">
       <button class="btn bp" id="btn-save-refit">💾 Mentés</button>
       <button class="btn bgh" id="btn-cancel-refit" style="display:none;">Mégse</button>
@@ -401,7 +391,7 @@ nav::-webkit-scrollbar{display:none;}
       <div class="fg"><label>Max db / hajó</label><input type="number" id="upgrade-max" value="1" min="1"></div>
     </div>
     <div class="fg"><label>Leírás</label><textarea id="upgrade-desc" placeholder="Mit csinál ez az upgrade..."></textarea></div>
-    <div class="fg"><label>Stat módosítás <span style="font-size:.7rem;color:var(--dim);">— vagy bónusz szám (hozzáadódik), VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot (pl. "6+ front / 5+")</span></label>
+    <div class="fg"><label>Stat módosítás</label>
       <div class="frow">
         <div class="fg"><label style="font-size:.72rem;">+HP</label><input type="number" id="upgrade-hits" value="0" step="1"></div>
         <div class="fg"><label style="font-size:.72rem;">Shields</label><input type="number" id="upgrade-shields" value="0" step="1" style="margin-bottom:.25rem;"><input type="text" id="upgrade-shields-override" placeholder="vagy csere"></div>
@@ -436,12 +426,39 @@ nav::-webkit-scrollbar{display:none;}
 
 
   </div>
+
+  <div class="cpage" id="page-crittables">
+  <div class="fsec" style="border-color:var(--red);">
+    <h2 id="crittable-form-title" style="color:var(--red);">➕ Új Crit Tábla</h2>
+    <input type="hidden" id="edit-crittable-id">
+    <div class="frow">
+      <div class="fg" style="flex:2;"><label>Tábla neve *</label><input type="text" id="crittable-name" placeholder="pl. Ork Kritikus Tábla"></div>
+      <div class="fg"><label>Frakció *</label><input type="text" id="crittable-faction" list="dl-crittable-faction" placeholder="pl. Ork"><datalist id="dl-crittable-faction"></datalist></div>
+      <div class="fg"><label>Al-frakció</label><input type="text" id="crittable-subfaction" list="dl-crittable-subfaction" placeholder="opcionális"><datalist id="dl-crittable-subfaction"></datalist></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:.6rem 0 .4rem;">
+      <span style="color:var(--gold);font-weight:bold;font-size:.9rem;">Bejegyzések</span>
+      <button type="button" class="btn bgh bsm" id="btn-add-critentry">+ Bejegyzés</button>
+    </div>
+    <div id="critentry-list"></div>
+    <div class="brow" style="margin-top:.7rem;">
+      <button class="btn bd" id="btn-save-crittable">💾 Mentés</button>
+      <button class="btn bgh" id="btn-cancel-crittable" style="display:none;">Mégse</button>
+    </div>
+  </div>
+  <div class="fsec" style="border-color:var(--red);">
+    <h2 style="color:var(--red);">💥 Crit Táblák</h2>
+    <div class="frow"><select id="crittable-faction-filter"><option value="">Minden frakció</option></select></div>
+    <div id="crittable-list"></div>
+  </div>
+  </div>
 </div>
 
 <script>
 var IS_LOCAL = location.protocol === 'file:';
 var ships = [], commanders = [], fleets = [];
 var refits = [], upgrades = []; // campaign catalogs — shared with BFG_Campaign*.html via localStorage
+var critTables = []; // global — used by BFG_App.html AND BFG_Campaign.html (not campaign-only)
 var curWeapons = [], curWg = [], curVariants = [], curWeaponGroups = [];
 var LOCS = ['Prow','Port','Starboard','Dorsal'];
 var ARC_OPTIONS = ['Front','Left','Right','All round','-'];
@@ -523,10 +540,14 @@ async function loadAll() {
   fleets     = await idbGetMigrated('bfg_fleets', []);
   refits     = await idbGetMigrated('bfg_campaign_refits', []);
   upgrades   = await idbGetMigrated('bfg_campaign_upgrades', []);
+  critTables = await idbGetMigrated('bfg_crit_tables', []);
 }
 async function saveCampaignCatalogs(){
   await idbSet('bfg_campaign_refits', refits);
   await idbSet('bfg_campaign_upgrades', upgrades);
+}
+async function saveCritTables(){
+  await idbSet('bfg_crit_tables', critTables);
 }
 async function saveShips() {
   var ok1=await idbSet('bfg_ships', ships);
@@ -831,6 +852,7 @@ get('btn-compress-images').addEventListener('click',compressExistingImages);
 
 get('btn-exp-refits').addEventListener('click',function(){ expRefits(); toast('✅ refits.json letöltve','var(--green)'); });
 get('btn-exp-upgrades').addEventListener('click',function(){ expUpgrades(); toast('✅ upgrades.json letöltve','var(--green)'); });
+get('btn-exp-crittables').addEventListener('click',function(){ expCritTables(); toast('✅ crit_tables.json letöltve','var(--green)'); });
 get('btn-clear-storage').addEventListener('click',async function(){
   if(!confirm('Ez törli az ÖSSZES böngészőben tárolt hajót és commandert (a data/ mappában lévő fájlokat NEM érinti). Biztosan folytatod? Előbb exportáld a hajóidat, ha még nem tetted!')) return;
   await idbSet('bfg_ships', []);
@@ -997,7 +1019,7 @@ function makeWeaponHtml(w, i) {
   var isOpt=!!w.optional;
   var isReload=!!w.reloadable;
   var segmentLabels={'':'— nincs kijelölve —','prow':'Prow szegmens','starboard':'Starboard szegmens','aft':'Aft szegmens','port':'Port szegmens','spine':'Spine (szegmenstől független)'};
-  var segmentPicker = curDreadnought ? '<div class="fg"><label>Szegmens <span style="font-size:.7rem;color:var(--dim);">(melyik szegmens roncsolódása némítja el — Spine esetén egyik sem)</span></label>'
+  var segmentPicker = curDreadnought ? '<div class="fg"><label>Szegmens</label>'
     +'<select class="wpn-segment" data-i="'+i+'">'
     +Object.keys(segmentLabels).map(function(s){return '<option value="'+s+'"'+((w.segment||'')===s?' selected':'')+'>'+segmentLabels[s]+'</option>';}).join('')
     +'</select></div>' : '';
@@ -1006,7 +1028,7 @@ function makeWeaponHtml(w, i) {
     +'<span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wpn-copy" data-i="'+i+'" title="Másolás vágólapra">📋</button><button type="button" class="btn bgh bsm wpn-dup" data-i="'+i+'" title="Duplikálás itt">🔁</button><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></span></div>'
     +'<div class="frow"><div class="fg" style="flex:2;"><label>Armament neve *</label><input type="text" class="wpn-name" list="dl-wpn-name" data-i="'+i+'" value="'+esc(w.name||'')+'"></div>'
     +'<div class="fg" style="flex:1;"><label>Range / Speed</label><input type="text" class="wpn-range" list="dl-wpn-range" data-i="'+i+'" value="'+esc(w.range||'')+'" placeholder="pl. 60cm"></div></div>'
-    +'<div class="fg"><label>Fire Arc <span style="font-size:.7rem;color:var(--dim);">(szabadon írható, vagy válassz lent)</span></label><input type="text" class="wpn-arc" data-i="'+i+'" value="'+esc(w.arc||'')+'" placeholder="pl. Front vagy 45°">'
+    +'<div class="fg"><label>Fire Arc</label><input type="text" class="wpn-arc" data-i="'+i+'" value="'+esc(w.arc||'')+'" placeholder="pl. Front vagy 45°">'
     +'<div class="loc-checks" style="margin-top:.3rem;">'+arcChecks+'</div></div>'
     +'<div class="fg"><label>Firepower / Str</label><input type="text" class="wpn-fp" list="dl-wpn-fp" data-i="'+i+'" value="'+esc(w.fp||'')+'" placeholder="pl. 4"></div>'
     +'<div class="fg"><label>Elhelyezkedés</label><div class="loc-checks">'+locChecks+'</div></div>'
@@ -1139,7 +1161,7 @@ function makeWgHtml(wg, i) {
   if(wg.turretOverride) statBadges.push('Turret→'+wg.turretOverride); else if(wg.turretBonus) statBadges.push('Turret'+(wg.turretBonus>0?'+':'')+wg.turretBonus);
   var statAdvancedBlock='';
   if(curAdvanced){
-    statAdvancedBlock='<div class="fg"><label>Stat módosítás (Advanced) <span style="font-size:.7rem;color:var(--dim);">— vagy a hajó Speed/Turns/Shields/Armour/Turret számrészéhez adódik hozzá a bónusz, VAGY ha a csere mezőt kitöltöd, azzal teljesen felülírja a statot</span></label>'
+    statAdvancedBlock='<div class="fg"><label>Stat módosítás (Advanced)</label>'
       +'<div class="frow">'
       +makeStatFieldPair('Speed','wg-speedbonus','wg-speedoverride',i,wg.speedBonus,wg.speedOverride)
       +makeStatFieldPair('Turns','wg-turnsbonus','wg-turnsoverride',i,wg.turnsBonus,wg.turnsOverride)
@@ -1254,12 +1276,15 @@ get('btn-add-variant').addEventListener('click',function(){ curVariants.push({id
 // summing to at most 2.
 // ============================================================
 function makeWGroupHtml(g, gi){
+  var hasLimit=g.hasLimit!==false; // default true — existing groups keep working as before
+  var limitLabel=hasLimit?' <span style="color:var(--dim);font-size:.78rem;">(limit: '+(g.limit||1)+' db)</span>':' <span style="color:var(--teal);font-size:.78rem;">(limit nélkül — csak megjelenítés)</span>';
   return '<div class="var-entry" data-gi="'+gi+'" style="border-color:var(--pdim);">'
-    +'<div class="var-entry-hdr"><span class="var-entry-nm" style="color:#a07aee;">🎯 '+esc(g.name||'Névtelen csoport')+' <span style="color:var(--dim);font-size:.78rem;">(limit: '+(g.limit||1)+' db)</span></span>'
+    +'<div class="var-entry-hdr"><span class="var-entry-nm" style="color:#a07aee;">🎯 '+esc(g.name||'Névtelen csoport')+limitLabel+'</span>'
     +'<button type="button" class="btn bd bsm wgrp-del" data-gi="'+gi+'">Csoport törlése</button></div>'
     +'<div class="frow"><div class="fg" style="flex:2;"><label>Csoport neve * (pl. Prow Weapon)</label><input type="text" class="wgrp-name" data-gi="'+gi+'" value="'+esc(g.name||'')+'"></div>'
-    +'<div class="fg" style="flex:1;"><label>Csoport limit (össz db)</label><input type="number" class="wgrp-limit" data-gi="'+gi+'" value="'+(g.limit||1)+'" min="1"></div></div>'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin:.45rem 0;"><span style="color:var(--gold);font-size:.82rem;font-weight:bold;">Lehetséges fegyverek ebben a csoportban</span><span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wgrp-paste-wpn" data-gi="'+gi+'" title="Vágólapon lévő fegyver beillesztése">📥</button><button type="button" class="btn bgh bsm wgrp-add-wpn" data-gi="'+gi+'">+ Fegyver</button></span></div>'
+    +(hasLimit?'<div class="fg" style="flex:1;"><label>Csoport limit (össz db)</label><input type="number" class="wgrp-limit" data-gi="'+gi+'" value="'+(g.limit||1)+'" min="1"></div>':'')+'</div>'
+    +'<button type="button" class="loc-check wgrp-haslimit-toggle'+(hasLimit?' checked':'')+'" data-gi="'+gi+'" style="'+(hasLimit?'':'border-color:var(--teal);color:var(--teal);')+'">'+(hasLimit?'✅ Van limit (válassz N-et)':'☐ Nincs limit (mind megjelenik, csak csoportosítva)')+'</button>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin:.45rem 0;"><span style="color:var(--gold);font-size:.82rem;font-weight:bold;">'+(hasLimit?'Lehetséges fegyverek ebben a csoportban':'Fegyverek ebben a csoportban')+'</span><span style="display:flex;gap:.3rem;"><button type="button" class="btn bgh bsm wgrp-paste-wpn" data-gi="'+gi+'" title="Vágólapon lévő fegyver beillesztése">📥</button><button type="button" class="btn bgh bsm wgrp-add-wpn" data-gi="'+gi+'">+ Fegyver</button></span></div>'
     +'<div class="wgroup-wpn-list" id="wgroup-wpn-list-'+gi+'"></div>'
     +'</div>';
 }
@@ -1274,8 +1299,20 @@ function renderWGroups(){
 }
 function bindWGroupEvents(el){
   el.querySelectorAll('.wgrp-del').forEach(function(btn){btn.addEventListener('click',function(){curWeaponGroups.splice(+btn.dataset.gi,1);renderWGroups();});});
-  el.querySelectorAll('.wgrp-name').forEach(function(inp){inp.addEventListener('input',function(){curWeaponGroups[+inp.dataset.gi].name=inp.value;inp.closest('.var-entry').querySelector('.var-entry-nm').innerHTML='🎯 '+esc(inp.value||'Névtelen csoport')+' <span style="color:var(--dim);font-size:.78rem;">(limit: '+(curWeaponGroups[+inp.dataset.gi].limit||1)+' db)</span>';});});
+  el.querySelectorAll('.wgrp-name').forEach(function(inp){inp.addEventListener('input',function(){
+    var gi=+inp.dataset.gi;
+    curWeaponGroups[gi].name=inp.value;
+    var g=curWeaponGroups[gi], hasLimit=g.hasLimit!==false;
+    var limitLabel=hasLimit?' <span style="color:var(--dim);font-size:.78rem;">(limit: '+(g.limit||1)+' db)</span>':' <span style="color:var(--teal);font-size:.78rem;">(limit nélkül — csak megjelenítés)</span>';
+    inp.closest('.var-entry').querySelector('.var-entry-nm').innerHTML='🎯 '+esc(inp.value||'Névtelen csoport')+limitLabel;
+  });});
   el.querySelectorAll('.wgrp-limit').forEach(function(inp){inp.addEventListener('change',function(){curWeaponGroups[+inp.dataset.gi].limit=parseInt(inp.value)||1;renderWGroups();});});
+  el.querySelectorAll('.wgrp-haslimit-toggle').forEach(function(btn){btn.addEventListener('click',function(){
+    var gi=+btn.dataset.gi;
+    var g=curWeaponGroups[gi];
+    g.hasLimit=g.hasLimit===false; // toggle: was false -> becomes true, was true/undefined -> becomes false
+    renderWGroups();
+  });});
   el.querySelectorAll('.wgrp-add-wpn').forEach(function(btn){btn.addEventListener('click',function(){
     var gi=+btn.dataset.gi;
     curWeaponGroups[gi].weapons.push({id:gid(),name:'',range:'',fp:'',arc:'',locations:[],optional:false,pts:0,max:1,reloadable:false});
@@ -1286,7 +1323,7 @@ function bindWGroupEvents(el){
     pasteWeaponInto(get('wgroup-wpn-list-'+gi), curWeaponGroups[gi].weapons);
   });});
 }
-get('btn-add-wgroup').addEventListener('click',function(){ curWeaponGroups.push({id:gid(),name:'Új csoport',limit:2,weapons:[]}); renderWGroups(); });
+get('btn-add-wgroup').addEventListener('click',function(){ curWeaponGroups.push({id:gid(),name:'Új csoport',limit:2,hasLimit:true,weapons:[]}); renderWGroups(); });
 
 
 // ============================================================
@@ -1771,6 +1808,89 @@ async function autoLoadCampaignCatalogs(){
   saveCampaignCatalogs(); renderRefits(); renderUpgrades();
 }
 
+// ============================================================
+// CRIT TABLES — global catalog (used by BFG_App.html AND BFG_Campaign.html),
+// assigned to ships by Faction or Sub-faction. Each entry covers one or more
+// 2D6 roll numbers (some factions share one effect across several numbers).
+// ============================================================
+var curCritEntries=[];
+function makeCritEntryHtml(e,i){
+  return '<div class="wge" style="border-color:#3a1a1a;">'
+    +'<div class="wge-hdr"><span class="wge-nm">💥 '+esc(e.name||'Névtelen effekt')+'</span><button class="btn bd bsm" data-wi="'+i+'">Törlés</button></div>'
+    +'<div class="frow"><div class="fg" style="flex:1;"><label>Dobás(ok) *</label><input type="text" class="ce-rolls" data-i="'+i+'" value="'+esc(e.rolls||'')+'" placeholder="pl. 2 vagy 2,3"></div>'
+    +'<div class="fg" style="flex:2;"><label>Effekt neve *</label><input type="text" class="ce-name" data-i="'+i+'" value="'+esc(e.name||'')+'"></div>'
+    +'<div class="fg" style="flex:1;"><label>Extra kár</label><input type="text" class="ce-dmg" data-i="'+i+'" value="'+esc(e.dmg||'')+'" placeholder="pl. +1, +D3"></div></div>'
+    +'<div class="fg"><label>Leírás</label><textarea class="ce-desc" data-i="'+i+'" rows="2">'+esc(e.desc||'')+'</textarea></div>'
+    +'</div>';
+}
+function renderCritEntries(){
+  var el=get('critentry-list');
+  if(!curCritEntries.length){ el.innerHTML='<div style="color:var(--dim);font-size:.8rem;padding:.28rem 0;">Még nincs bejegyzés.</div>'; return; }
+  el.innerHTML=curCritEntries.map(function(e,i){return makeCritEntryHtml(e,i);}).join('');
+  el.querySelectorAll('[data-wi]').forEach(function(btn){btn.addEventListener('click',function(){curCritEntries.splice(parseInt(btn.dataset.wi),1);renderCritEntries();});});
+  el.querySelectorAll('.ce-rolls').forEach(function(inp){inp.addEventListener('input',function(){curCritEntries[+inp.dataset.i].rolls=inp.value;});});
+  el.querySelectorAll('.ce-name').forEach(function(inp){inp.addEventListener('input',function(){curCritEntries[+inp.dataset.i].name=inp.value;inp.closest('.wge').querySelector('.wge-nm').textContent='💥 '+(inp.value||'Névtelen effekt');});});
+  el.querySelectorAll('.ce-dmg').forEach(function(inp){inp.addEventListener('input',function(){curCritEntries[+inp.dataset.i].dmg=inp.value;});});
+  el.querySelectorAll('.ce-desc').forEach(function(inp){inp.addEventListener('input',function(){curCritEntries[+inp.dataset.i].desc=inp.value;});});
+}
+get('btn-add-critentry').addEventListener('click',function(){ curCritEntries.push({id:gid(),rolls:'',name:'',desc:'',dmg:''}); renderCritEntries(); });
+
+function clearCritTableForm(){
+  get('edit-crittable-id').value='';
+  ['crittable-name','crittable-faction','crittable-subfaction'].forEach(function(id){get(id).value='';});
+  curCritEntries=[];
+  renderCritEntries();
+  get('crittable-form-title').textContent='➕ Új Crit Tábla';
+  get('btn-save-crittable').textContent='💾 Mentés'; get('btn-cancel-crittable').style.display='none';
+}
+function startEditCritTable(id){
+  var t=critTables.find(function(x){return x.id===id;}); if(!t) return;
+  get('edit-crittable-id').value=t.id;
+  get('crittable-name').value=t.name; get('crittable-faction').value=t.faction||''; get('crittable-subfaction').value=t.subfaction||'';
+  curCritEntries=JSON.parse(JSON.stringify(t.entries||[]));
+  renderCritEntries();
+  get('crittable-form-title').textContent='✏️ '+t.name;
+  get('btn-save-crittable').textContent='💾 Mentés'; get('btn-cancel-crittable').style.display='inline-flex';
+}
+get('btn-cancel-crittable').addEventListener('click',clearCritTableForm);
+get('btn-save-crittable').addEventListener('click',function(){
+  var name=get('crittable-name').value.trim(), faction=get('crittable-faction').value.trim();
+  if(!name||!faction){toast('❌ Töltsd ki: Név, Frakció','var(--red)');return;}
+  if(!curCritEntries.length){toast('❌ Adj hozzá legalább egy bejegyzést','var(--red)');return;}
+  var obj={name:name,faction:faction,subfaction:get('crittable-subfaction').value.trim(),entries:JSON.parse(JSON.stringify(curCritEntries))};
+  var eid=get('edit-crittable-id').value;
+  if(eid){var i=critTables.findIndex(function(x){return x.id===eid;});if(i!==-1)critTables[i]=Object.assign({id:eid},obj);}
+  else{critTables.push(Object.assign({id:gid()},obj));}
+  saveCritTables(); clearCritTableForm(); renderCritTables();
+  toast('✅ Crit tábla mentve','var(--green)');
+});
+function renderCritTables(){
+  refreshAutocompleteLists();
+  var ff=get('crittable-faction-filter').value;
+  fillSelect('crittable-faction-filter',getUniq(critTables,'faction'),ff);
+  var list=ff?critTables.filter(function(t){return t.faction===ff;}):critTables;
+  var el=get('crittable-list');
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">💥</div><p>Nincs crit tábla. Hozz létre egyet fent!</p></div>';return;}
+  el.innerHTML=list.map(function(t){
+    return '<div class="sc" style="border-color:var(--red);"><div class="sc-hdr"><span class="sc-name" style="color:var(--red);">'+esc(t.name)+'</span><span class="badge" style="background:var(--red);color:#fff;">'+(t.entries||[]).length+' bejegyzés</span></div>'
+      +'<div class="sc-sub">'+esc(t.faction)+(t.subfaction?' · '+esc(t.subfaction):'')+'</div>'
+      +'<div class="sc-acts"><button class="btn bgh bsm crittable-edit" data-id="'+t.id+'" style="flex:1;">✏️</button><button class="btn bd bsm crittable-del" data-id="'+t.id+'" style="flex:1;">🗑️</button></div>'
+      +'</div>';
+  }).join('');
+  el.querySelectorAll('.crittable-edit').forEach(function(b){b.addEventListener('click',function(){startEditCritTable(b.dataset.id);});});
+  el.querySelectorAll('.crittable-del').forEach(function(b){b.addEventListener('click',function(){
+    if(!confirm('Törlöd?')) return;
+    critTables=critTables.filter(function(t){return t.id!==b.dataset.id;});
+    saveCritTables(); renderCritTables();
+  });});
+}
+get('crittable-faction-filter').addEventListener('change',renderCritTables);
+function expCritTables(){ dl(JSON.stringify(critTables,null,2),'crit_tables.json'); }
+async function autoLoadCritTables(){
+  if(IS_LOCAL) return;
+  try{ var r=await fetch('./data/crit_tables.json?_='+Date.now()); if(r.ok){ critTables=await r.json(); await idbSet('bfg_crit_tables',critTables); renderCritTables(); } }catch(e){}
+}
+
 // ---- TAB NAV ----
 document.querySelectorAll('.ctab').forEach(function(tab){
   tab.addEventListener('click',function(){
@@ -1783,8 +1903,8 @@ document.querySelectorAll('.ctab').forEach(function(tab){
 
 async function initPage(){
   await loadAll();
-  renderDevShips(); renderDevCmds(); renderWeapons(); renderWg(); renderVariants(); renderWGroups(); renderStorageStatus(); renderRefits(); renderUpgrades();
-  autoLoad(); autoLoadCampaignCatalogs();
+  renderDevShips(); renderDevCmds(); renderWeapons(); renderWg(); renderVariants(); renderWGroups(); renderStorageStatus(); renderRefits(); renderUpgrades(); renderCritTables();
+  autoLoad(); autoLoadCampaignCatalogs(); autoLoadCritTables();
 }
 initPage();
 

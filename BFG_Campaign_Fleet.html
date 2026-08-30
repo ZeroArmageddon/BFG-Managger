@@ -76,7 +76,8 @@ nav::-webkit-scrollbar{display:none;}
 .var-select-row label{color:var(--dim);}
 .var-select-row select{padding:.22rem .4rem;background:var(--card);border:1px solid var(--teal);color:#4ad9c9;border-radius:4px;font-size:.76rem;max-width:160px;}
 .status{font-size:.8rem;padding:.36rem .58rem;border-radius:4px;background:var(--inp);margin-bottom:.72rem;}
-.toast{position:fixed;bottom:1.1rem;right:1.1rem;padding:.55rem .95rem;border-radius:6px;font-size:.83rem;font-weight:bold;background:var(--card);border:1px solid var(--gdim);color:var(--txt);z-index:999;display:none;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.toast{position:sticky;top:52px;left:0;right:0;z-index:150;background:var(--card);border-bottom:2px solid var(--gold);padding:0 1rem;font-size:.85rem;font-weight:600;color:var(--txt);text-align:center;max-height:0;overflow:hidden;transition:max-height .25s cubic-bezier(.4,0,.2,1),padding .25s;}
+.toast.show{max-height:50px;padding:.65rem 1rem;}
 .toast.show{display:block;}
 .empty{text-align:center;padding:1.8rem 1rem;color:var(--dim);}.empty-icon{font-size:1.75rem;margin-bottom:.42rem;}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;padding:1rem;overflow-y:auto;}
@@ -99,6 +100,7 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb" href="BFG_Rulebook.html">📖 Rulebook</a>
     <a class="nb" href="BFG_Campaign.html">🌌 Campaign</a>
     <a class="nb active" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb" href="BFG_Battlefield.html">🛰️ Csatatér</a>
   </div>
 </nav>
 <div class="toast" id="toast"></div>
@@ -191,7 +193,7 @@ var ships=[], commanders=[];
 function gid(){return '_'+Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function get(id){return document.getElementById(id);}
-function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderColor=col||'var(--gold)';el.style.color=col||'var(--gold)';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
+function toast(msg,col){var el=get('toast');el.textContent=msg;el.style.borderBottomColor=col||'var(--gold)';el.style.color=col||'var(--gold)';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
 function openModal(id){get(id).classList.add('open');}
 function closeModal(id){get(id).classList.remove('open');}
 function getUniq(arr,key){var r=[];arr.forEach(function(x){var v=x[key]||'';if(v&&r.indexOf(v)<0)r.push(v);});return r.sort();}
@@ -367,6 +369,14 @@ function renderCampaignFleet(){
     }
     if(ship.weaponGroups&&ship.weaponGroups.length){
       ship.weaponGroups.forEach(function(g){
+        var hasLimit=g.hasLimit!==false;
+        if(!hasLimit){
+          wpnPanelHtml+='<div style="margin:.35rem 0 .2rem;padding-top:.3rem;border-top:1px dashed #333;font-size:.75rem;color:#a07aee;font-weight:bold;">🎯 '+esc(g.name)+'</div>';
+          (g.weapons||[]).forEach(function(w){
+            wpnPanelHtml+='<div class="wg-row"><span style="color:#a07aee;font-size:.8rem;">🎯</span><span class="wg-lbl">'+esc(w.name)+'</span></div>';
+          });
+          return;
+        }
         var sel=(entry.weaponGroups||{})[g.id]||{};
         var groupTotal=0; Object.keys(sel).forEach(function(k){groupTotal+=sel[k];});
         (g.weapons||[]).forEach(function(w){ wgrpExtra+=(w.pts||0)*(sel[w.id]||0); });

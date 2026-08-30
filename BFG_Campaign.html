@@ -191,6 +191,7 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb" href="BFG_Rulebook.html">📖 Rulebook</a>
     <a class="nb active" href="BFG_Campaign.html">🌌 Campaign</a>
     <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb" href="BFG_Battlefield.html">🛰️ Csatatér</a>
   </div>
 </nav>
 
@@ -418,6 +419,7 @@ async function loadAll(){
   commanders=await idbGetMigrated('bfg_commanders',[]);
   rulebookEntries=await idbGetMigrated('bfg_rulebook',[]);
   pinnedRules=await idbGetMigrated('bfg_pinned_rules',[]);
+  critTables=await idbGetMigrated('bfg_crit_tables',[]);
 }
 function saveCampaign(){
   idbSet('bfg_campaign_players',players);
@@ -447,6 +449,7 @@ async function refreshSharedData(){
   commanders=await idbGetMigrated('bfg_commanders',commanders);
   rulebookEntries=await idbGetMigrated('bfg_rulebook',rulebookEntries);
   pinnedRules=await idbGetMigrated('bfg_pinned_rules',pinnedRules);
+  critTables=await idbGetMigrated('bfg_crit_tables',critTables);
 }
 document.querySelectorAll('.ctab').forEach(function(tab){
   tab.addEventListener('click',async function(){
@@ -823,7 +826,11 @@ function campBuildDisplayWeapons(ship,entry){
     else { add(w,(entry.weapons||{})[w.id]||0); }
   });
   if(ship.weaponGroups) ship.weaponGroups.forEach(function(g){
-    (g.weapons||[]).forEach(function(w){ var sel=(entry.weaponGroups||{})[g.id]||{}; add(w,sel[w.id]||0,{_groupName:g.name}); });
+    var hasLimit=g.hasLimit!==false;
+    (g.weapons||[]).forEach(function(w){
+      if(!hasLimit){ add(w,1,{_groupName:g.name}); }
+      else { var sel=(entry.weaponGroups||{})[g.id]||{}; add(w,sel[w.id]||0,{_groupName:g.name}); }
+    });
   });
   if(ship.wargear) ship.wargear.forEach(function(wg){
     var qty=(entry.wargear||{})[wg.id]||0;
@@ -890,19 +897,31 @@ function resolveCommanderRef(refId){
   var c=commanders.find(function(x){return x.id===refId;});
   return c?{id:refId, name:c.name, isPlayer:false, points:c.points}:null;
 }
-var CRITS=[
-  {roll:2,dmg:'+0',name:'Dorsal Armament Damaged',desc:'A hátulsó fegyverzet megrongálódott. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:3,dmg:'+0',name:'Starboard Armament Damaged',desc:'A jobb oldali fegyverzet meghibásodott. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:4,dmg:'+0',name:'Port Armament Damaged',desc:'A bal oldali fegyverzet elnémult. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:5,dmg:'+0',name:'Prow Armament Damaged',desc:'Az orr fegyverzete megsérült. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:6,dmg:'+1',name:'Engine Room Damaged',desc:'A gépteret felrobbanások rázták meg. Nem tud fordulni amíg meg nem javítják.'},
-  {roll:7,dmg:'+0',name:'Fire!',desc:'Tüzek keletkeztek. End Phase-ben oltsd el. Ha nem sikerül: +1 extra sebzés.'},
-  {roll:8,dmg:'+1',name:'Thrusters Damaged',desc:'A hajtómű kikapcsolt. Sebesség −10 cm amíg meg nem javítják.'},
-  {roll:9,dmg:'+0',name:'Bridge Smashed',desc:'A parancsnoki híd megsemmisült. Leadership −3. Nem javítható.'},
-  {roll:10,dmg:'+0',name:'Shields Collapse',desc:'Pajzsgenerátorok kiégtek. Pajzserő nulla. Nem javítható.'},
-  {roll:11,dmg:'+D3',name:'Hull Breach',desc:'Hatalmas rés a hajótestben, öldöklés a legénység között.'},
-  {roll:12,dmg:'+D6',name:'Bulkhead Collapse',desc:'Belső tartóoszlopok roppannak össze. Imádkozz hogy maradjon valami!'}
-];
+var DEFAULT_CRITS={id:'',name:'Alap Kritikus Tábla',faction:'',subfaction:'',entries:[
+  {id:'d2',rolls:'2',dmg:'+0',name:'Dorsal Armament Damaged',desc:'A hátulsó fegyverzet megrongálódott. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d3',rolls:'3',dmg:'+0',name:'Starboard Armament Damaged',desc:'A jobb oldali fegyverzet meghibásodott. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d4',rolls:'4',dmg:'+0',name:'Port Armament Damaged',desc:'A bal oldali fegyverzet elnémult. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d5',rolls:'5',dmg:'+0',name:'Prow Armament Damaged',desc:'Az orr fegyverzete megsérült. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d6',rolls:'6',dmg:'+1',name:'Engine Room Damaged',desc:'A gépteret felrobbanások rázták meg. Nem tud fordulni amíg meg nem javítják.'},
+  {id:'d7',rolls:'7',dmg:'+0',name:'Fire!',desc:'Tüzek keletkeztek. End Phase-ben oltsd el. Ha nem sikerül: +1 extra sebzés.'},
+  {id:'d8',rolls:'8',dmg:'+1',name:'Thrusters Damaged',desc:'A hajtómű kikapcsolt. Sebesség −10 cm amíg meg nem javítják.'},
+  {id:'d9',rolls:'9',dmg:'+0',name:'Bridge Smashed',desc:'A parancsnoki híd megsemmisült. Leadership −3. Nem javítható.'},
+  {id:'d10',rolls:'10',dmg:'+0',name:'Shields Collapse',desc:'Pajzsgenerátorok kiégtek. Pajzserő nulla. Nem javítható.'},
+  {id:'d11',rolls:'11',dmg:'+D3',name:'Hull Breach',desc:'Hatalmas rés a hajótestben, öldöklés a legénység között.'},
+  {id:'d12',rolls:'12',dmg:'+D6',name:'Bulkhead Collapse',desc:'Belső tartóoszlopok roppannak össze. Imádkozz hogy maradjon valami!'}
+]};
+var critTables=[]; // loaded from IndexedDB — custom tables assigned by ship Faction/Sub-faction
+function getCritTableForShip(ship){
+  var baseShip=ship._baseShip||ship;
+  var bySub=critTables.find(function(t){return t.subfaction&&t.subfaction===baseShip.subfaction&&t.faction===baseShip.faction;});
+  if(bySub) return bySub;
+  var byFac=critTables.find(function(t){return t.faction===baseShip.faction&&!t.subfaction;});
+  if(byFac) return byFac;
+  return DEFAULT_CRITS;
+}
+function parseCritRolls(str){
+  return String(str||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+}
 
 // ---- DREADNOUGHT SEGMENTS (Campaign battle mode) ----
 var SEGMENT_LABELS={prow:'Prow',starboard:'Starboard',aft:'Aft',port:'Port'};
@@ -951,7 +970,7 @@ function segColor(s){
 function buildDreadnoughtDiagram(ship,entry,key,st){
   ensureSegmentState(ship,entry,st);
   var sel=st.selectedSegment;
-  var polys={prow:'0,0 100,0 50,50',starboard:'100,0 100,100 50,50',aft:'100,100 0,100 50,50',port:'0,100 0,0 50,50'};
+  var polys={port:'0,0 100,0 50,50',prow:'100,0 100,100 50,50',starboard:'100,100 0,100 50,50',aft:'0,100 0,0 50,50'};
   var svgPolys=SEGMENT_ORDER.map(function(seg){
     var isSel=sel===seg, s=st.segments[seg];
     return '<polygon points="'+polys[seg]+'" fill="'+segColor(s)+'" stroke="'+(isSel?'#c9a227':'rgba(255,255,255,.35)')+'" stroke-width="'+(isSel?'2.2':'0.6')+'" class="dread-segment" data-key="'+key+'" data-seg="'+seg+'" style="cursor:pointer;"/>';
@@ -979,7 +998,7 @@ function buildDreadnoughtDiagram(ship,entry,key,st){
       +'<div style="font-weight:bold;color:var(--gold);margin-bottom:.4rem;">'+SEGMENT_LABELS[sel]+' szegmens</div>'
       +(segStatBadges?'<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem;">'+segStatBadges+'</div>':'')
       +buildSegmentHpSection(key,sel,s,pct,cls)
-      +buildSegmentCritTable(key,sel,s.crits||{},s.critOpen)
+      +buildSegmentCritTable(key,sel,s.crits||{},s.critOpen,ship)
       +'</div>';
   } else {
     panel='<p style="color:var(--dim);font-size:.8rem;text-align:center;margin-bottom:.6rem;">👆 Válassz egy szegmenst (a képen vagy a gombok közül) a hit/crit tábla megtekintéséhez</p>';
@@ -991,15 +1010,16 @@ function buildSegmentHpSection(key,seg,s,pct,cls){
     +'<div class="hp-track"><div class="hp-fill '+cls+'" style="width:'+pct+'%"></div></div>'
     +'<div class="hp-ctrl"><button class="btn bd bsm seg-hp-adj" data-key="'+key+'" data-seg="'+seg+'" data-d="-1">−1 Sérülés</button><button class="btn bgr bsm seg-hp-adj" data-key="'+key+'" data-seg="'+seg+'" data-d="1">+1 Javítás</button></div></div>';
 }
-function buildSegmentCritTable(key,seg,crits,open){
+function buildSegmentCritTable(key,seg,crits,open,ship){
+  var table=getCritTableForShip(ship);
   var totalCrits=Object.values(crits).reduce(function(s,v){return s+v;},0);
   var header='<div style="display:flex;justify-content:space-between;align-items:center;margin:.4rem 0 .3rem;cursor:pointer;" class="seg-crit-toggle" data-key="'+key+'" data-seg="'+seg+'">'
     +'<span style="color:var(--gold);font-size:.82rem;font-weight:bold;">💥 Kritikus'+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.06rem .3rem;border-radius:3px;font-size:.68rem;">'+totalCrits+'</span>':'')+'</span>'
     +'<span style="color:var(--dim);font-size:.76rem;">'+(open?'▲':'▼')+'</span></div>';
   if(!open) return header;
-  var rows=CRITS.map(function(c){
-    var n=crits[c.roll]||0; var fires=''; for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';
-    return '<tr><td class="cr">'+c.roll+'</td><td class="cd">'+(c.dmg||'')+'</td><td><div class="cc"><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-roll="'+c.roll+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-roll="'+c.roll+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span></td><td><div class="fires">'+fires+'</div></td></tr>';
+  var rows=table.entries.map(function(c){
+    var n=crits[c.id]||0; var fires=''; for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';
+    return '<tr><td class="cr">'+esc(parseCritRolls(c.rolls).join(', '))+'</td><td class="cd">'+esc(c.dmg||'')+'</td><td><div class="cc"><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-entry="'+c.id+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-entry="'+c.id+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span></td><td><div class="fires">'+fires+'</div></td></tr>';
   }).join('');
   return header+'<table class="crit-tbl"><thead><tr><th>2D6</th><th>+Dmg</th><th>Db</th><th>Eredmény</th><th>🔥</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
@@ -1094,7 +1114,7 @@ function renderCampaignBattle(){
         +'<div class="hp-ctrl" style="margin-bottom:.6rem;"><button class="btn bd bsm hp-adj" data-key="'+key+'" data-d="-1">−1 Sérülés</button><button class="btn bgr bsm hp-adj" data-key="'+key+'" data-d="1">+1 Javítás</button><input type="number" class="hp-set-inp" data-key="'+key+'" value="'+st.hp+'" min="0" max="'+st.maxHp+'"><button class="btn bgh bsm hp-set-btn" data-key="'+key+'">Beállít</button></div>'
       ))
       +'<div class="hp-ctrl" style="margin-bottom:.6rem;"><span style="color:var(--dim);font-size:.82rem;margin-right:.3rem;">⭐ Leadership:</span><button class="btn bd bsm ld-adj" data-key="'+key+'" data-d="-1">−1</button><span style="font-weight:bold;min-width:20px;text-align:center;">'+st.leadership+'</span><button class="btn bgr bsm ld-adj" data-key="'+key+'" data-d="1">+1</button></div>'
-      +(isDread ? '' : buildCampaignCritTable(key,st.crits||{},st.critOpen))
+      +(isDread ? '' : buildCampaignCritTable(key,st.crits||{},st.critOpen,ship))
       +(weapons.length?'<div style="margin-top:.5rem;"><div style="color:var(--gold);font-size:.87rem;font-weight:bold;margin-bottom:.45rem;">🔫 Fegyverek <span style="color:var(--dim);font-size:.68rem;font-weight:normal;">(kattints a névre a szabálykönyvhöz)</span></div>'+campBuildWpnTable(weapons,true,key)+'</div>':'')
       +'</div></div>';
   });
@@ -1107,20 +1127,21 @@ function renderCampaignBattle(){
   el.querySelectorAll('.hp-set-inp,.bc-note-inp').forEach(function(inp){inp.addEventListener('click',function(e){e.stopPropagation();});});
   el.querySelectorAll('.bc-note-inp').forEach(function(inp){inp.addEventListener('change',function(){var k=inp.dataset.key,st=campaignBattleState[k];if(st){st.note=inp.value;saveCampaignBattle();}});});
   el.querySelectorAll('.ld-adj').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var k=b.dataset.key,d=parseInt(b.dataset.d),st=campaignBattleState[k];if(!st)return;st.leadership=Math.max(1,st.leadership+d);saveCampaignBattle();renderCampaignBattle();});});
-  el.querySelectorAll('.ccb').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var k=b.dataset.key,roll=b.dataset.roll,dir=parseInt(b.dataset.dir),st=campaignBattleState[k];if(!st)return;if(!st.crits)st.crits={};st.crits[roll]=Math.max(0,(st.crits[roll]||0)+dir);saveCampaignBattle();renderCampaignBattle();});});
+  el.querySelectorAll('.ccb').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var k=b.dataset.key,entryId=b.dataset.entry,dir=parseInt(b.dataset.dir),st=campaignBattleState[k];if(!st)return;if(!st.crits)st.crits={};st.crits[entryId]=Math.max(0,(st.crits[entryId]||0)+dir);saveCampaignBattle();renderCampaignBattle();});});
   el.querySelectorAll('.dread-segment,.dread-segment-chip').forEach(function(elx){elx.addEventListener('click',function(e){e.stopPropagation();var key=elx.dataset.key,seg=elx.dataset.seg,st=campaignBattleState[key];if(!st)return;st.selectedSegment=(st.selectedSegment===seg)?null:seg;saveCampaignBattle();renderCampaignBattle();});});
   el.querySelectorAll('.seg-hp-adj').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var key=b.dataset.key,seg=b.dataset.seg,d=parseInt(b.dataset.d),st=campaignBattleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];s.hp=Math.max(0,Math.min(s.maxHp,s.hp+d));saveCampaignBattle();renderCampaignBattle();});});
   el.querySelectorAll('.seg-crit-toggle').forEach(function(div){div.addEventListener('click',function(e){e.stopPropagation();var key=div.dataset.key,seg=div.dataset.seg,st=campaignBattleState[key];if(!st||!st.segments||!st.segments[seg])return;st.segments[seg].critOpen=!st.segments[seg].critOpen;saveCampaignBattle();renderCampaignBattle();});});
-  el.querySelectorAll('.seg-ccb').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var key=b.dataset.key,seg=b.dataset.seg,roll=parseInt(b.dataset.roll),dir=parseInt(b.dataset.dir),st=campaignBattleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];if(!s.crits)s.crits={};s.crits[roll]=Math.max(0,(s.crits[roll]||0)+dir);saveCampaignBattle();renderCampaignBattle();});});
+  el.querySelectorAll('.seg-ccb').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var key=b.dataset.key,seg=b.dataset.seg,entryId=b.dataset.entry,dir=parseInt(b.dataset.dir),st=campaignBattleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];if(!s.crits)s.crits={};s.crits[entryId]=Math.max(0,(s.crits[entryId]||0)+dir);saveCampaignBattle();renderCampaignBattle();});});
   el.querySelectorAll('.camp-wpn-status-btn').forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();var k=b.dataset.key,wid=b.dataset.wid,st=campaignBattleState[k];if(!st)return;if(!st.weaponStatus)st.weaponStatus={};st.weaponStatus[wid]=(st.weaponStatus[wid]==='fired')?'loaded':'fired';saveCampaignBattle();renderCampaignBattle();});});
 }
-function buildCampaignCritTable(key,crits,open){
+function buildCampaignCritTable(key,crits,open,ship){
+  var table=getCritTableForShip(ship);
   var totalCrits=Object.values(crits).reduce(function(s,v){return s+v;},0);
   var header='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;cursor:pointer;" class="crit-toggle" data-key="'+key+'">'
-    +'<span style="color:var(--gold);font-size:.87rem;font-weight:bold;">💥 Kritikus Találatok'+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.08rem .32rem;border-radius:3px;font-size:.72rem;">'+totalCrits+'</span>':'')+'</span>'
+    +'<span style="color:var(--gold);font-size:.87rem;font-weight:bold;">💥 Kritikus Találatok'+(table.name?' <span style="color:var(--dim);font-weight:normal;font-size:.72rem;">('+esc(table.name)+')</span>':'')+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.08rem .32rem;border-radius:3px;font-size:.72rem;">'+totalCrits+'</span>':'')+'</span>'
     +'<span style="color:var(--dim);font-size:.8rem;">'+(open?'▲ Összecsuk':'▼ Kibont')+'</span></div>';
   if(!open) return '<div style="margin-bottom:.75rem;">'+header+'</div>';
-  var rows=CRITS.map(function(c){var n=crits[c.roll]||0;var fires='';for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';return '<tr><td class="cr">'+c.roll+'</td><td class="cd">'+(c.dmg||'')+'</td><td><div class="cc"><button class="ccb" data-key="'+key+'" data-roll="'+c.roll+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb" data-key="'+key+'" data-roll="'+c.roll+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span></td><td><div class="fires">'+fires+'</div></td></tr>';}).join('');
+  var rows=table.entries.map(function(c){var n=crits[c.id]||0;var fires='';for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';return '<tr><td class="cr">'+esc(parseCritRolls(c.rolls).join(', '))+'</td><td class="cd">'+esc(c.dmg||'')+'</td><td><div class="cc"><button class="ccb" data-key="'+key+'" data-entry="'+c.id+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb" data-key="'+key+'" data-entry="'+c.id+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span>'+(c.desc?'<div style="font-size:.72rem;color:var(--dim);">'+esc(c.desc)+'</div>':'')+'</td><td><div class="fires">'+fires+'</div></td></tr>';}).join('');
   return '<div style="margin-bottom:.75rem;">'+header+'<table class="crit-tbl"><thead><tr><th>2D6</th><th>+Dmg</th><th>Db</th><th>Eredmény</th><th>🔥</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 

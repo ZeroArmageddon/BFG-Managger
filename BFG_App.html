@@ -180,6 +180,7 @@ nav::-webkit-scrollbar{display:none;}
     <a class="nb" href="BFG_Rulebook.html">📖 Rulebook</a>
     <a class="nb" href="BFG_Campaign.html">🌌 Campaign</a>
     <a class="nb" href="BFG_Campaign_Fleet.html">🚀 Campaign Flotta</a>
+    <a class="nb" href="BFG_Battlefield.html">🛰️ Csatatér</a>
   </div>
 </nav>
 <div class="toast" id="toast"></div>
@@ -334,19 +335,34 @@ var ships=[], commanders=[], fleets=[], activeFleetId=null, battleState={};
 var rulebookEntries=[], pinnedRules=[]; // for the pinned-rules bar in battle mode
 var enabledPackages=[];
 var IS_LOCAL=location.protocol==='file:';
-var CRITS=[
-  {roll:2,dmg:'+0',name:'Dorsal Armament Damaged',desc:'A hátulsó fegyverzet megrongálódott. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:3,dmg:'+0',name:'Starboard Armament Damaged',desc:'A jobb oldali fegyverzet meghibásodott. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:4,dmg:'+0',name:'Port Armament Damaged',desc:'A bal oldali fegyverzet elnémult. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:5,dmg:'+0',name:'Prow Armament Damaged',desc:'Az orr fegyverzete megsérült. Nem tud tüzelni amíg meg nem javítják.'},
-  {roll:6,dmg:'+1',name:'Engine Room Damaged',desc:'A gépteret felrobbanások rázták meg. Nem tud fordulni amíg meg nem javítják.'},
-  {roll:7,dmg:'+0',name:'Fire!',desc:'Tüzek keletkeztek. End Phase-ben oltsd el. Ha nem sikerül: +1 extra sebzés.'},
-  {roll:8,dmg:'+1',name:'Thrusters Damaged',desc:'A hajtómű kikapcsolt. Sebesség −10 cm amíg meg nem javítják.'},
-  {roll:9,dmg:'+0',name:'Bridge Smashed',desc:'A parancsnoki híd megsemmisült. Leadership −3. Nem javítható.'},
-  {roll:10,dmg:'+0',name:'Shields Collapse',desc:'Pajzsgenerátorok kiégtek. Pajzserő nulla. Nem javítható.'},
-  {roll:11,dmg:'+D3',name:'Hull Breach',desc:'Hatalmas rés a hajótestben, öldöklés a legénység között.'},
-  {roll:12,dmg:'+D6',name:'Bulkhead Collapse',desc:'Belső tartóoszlopok roppannak össze. Imádkozz hogy maradjon valami!'}
-];
+var DEFAULT_CRITS={id:'',name:'Alap Kritikus Tábla',faction:'',subfaction:'',entries:[
+  {id:'d2',rolls:'2',dmg:'+0',name:'Dorsal Armament Damaged',desc:'A hátulsó fegyverzet megrongálódott. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d3',rolls:'3',dmg:'+0',name:'Starboard Armament Damaged',desc:'A jobb oldali fegyverzet meghibásodott. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d4',rolls:'4',dmg:'+0',name:'Port Armament Damaged',desc:'A bal oldali fegyverzet elnémult. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d5',rolls:'5',dmg:'+0',name:'Prow Armament Damaged',desc:'Az orr fegyverzete megsérült. Nem tud tüzelni amíg meg nem javítják.'},
+  {id:'d6',rolls:'6',dmg:'+1',name:'Engine Room Damaged',desc:'A gépteret felrobbanások rázták meg. Nem tud fordulni amíg meg nem javítják.'},
+  {id:'d7',rolls:'7',dmg:'+0',name:'Fire!',desc:'Tüzek keletkeztek. End Phase-ben oltsd el. Ha nem sikerül: +1 extra sebzés.'},
+  {id:'d8',rolls:'8',dmg:'+1',name:'Thrusters Damaged',desc:'A hajtómű kikapcsolt. Sebesség −10 cm amíg meg nem javítják.'},
+  {id:'d9',rolls:'9',dmg:'+0',name:'Bridge Smashed',desc:'A parancsnoki híd megsemmisült. Leadership −3. Nem javítható.'},
+  {id:'d10',rolls:'10',dmg:'+0',name:'Shields Collapse',desc:'Pajzsgenerátorok kiégtek. Pajzserő nulla. Nem javítható.'},
+  {id:'d11',rolls:'11',dmg:'+D3',name:'Hull Breach',desc:'Hatalmas rés a hajótestben, öldöklés a legénység között.'},
+  {id:'d12',rolls:'12',dmg:'+D6',name:'Bulkhead Collapse',desc:'Belső tartóoszlopok roppannak össze. Imádkozz hogy maradjon valami!'}
+]};
+var critTables=[]; // loaded from IndexedDB — custom tables assigned by ship Faction/Sub-faction
+// Picks the most specific matching crit table for a ship: sub-faction match
+// wins over faction-only match, falling back to the standard table if the
+// ship's faction has no custom table configured in the Developer.
+function getCritTableForShip(ship){
+  var baseShip=ship._baseShip||ship;
+  var bySub=critTables.find(function(t){return t.subfaction&&t.subfaction===baseShip.subfaction&&t.faction===baseShip.faction;});
+  if(bySub) return bySub;
+  var byFac=critTables.find(function(t){return t.faction===baseShip.faction&&!t.subfaction;});
+  if(byFac) return byFac;
+  return DEFAULT_CRITS;
+}
+function parseCritRolls(str){
+  return String(str||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+}
 
 // ---- DREADNOUGHT SEGMENTS ----
 // Dreadnought-flagged ships are divided into 4 independently-tracked segments
@@ -399,7 +415,7 @@ function segColor(s){
 function buildDreadnoughtDiagram(ship,entry,key,st){
   ensureSegmentState(ship,entry,st);
   var sel=st.selectedSegment;
-  var polys={prow:'0,0 100,0 50,50',starboard:'100,0 100,100 50,50',aft:'100,100 0,100 50,50',port:'0,100 0,0 50,50'};
+  var polys={port:'0,0 100,0 50,50',prow:'100,0 100,100 50,50',starboard:'100,100 0,100 50,50',aft:'0,100 0,0 50,50'};
   var svgPolys=SEGMENT_ORDER.map(function(seg){
     var isSel=sel===seg, s=st.segments[seg];
     return '<polygon points="'+polys[seg]+'" fill="'+segColor(s)+'" stroke="'+(isSel?'#c9a227':'rgba(255,255,255,.35)')+'" stroke-width="'+(isSel?'2.2':'0.6')+'" class="dread-segment" data-key="'+key+'" data-seg="'+seg+'" style="cursor:pointer;"/>';
@@ -427,7 +443,7 @@ function buildDreadnoughtDiagram(ship,entry,key,st){
       +'<div style="font-weight:bold;color:var(--gold);margin-bottom:.4rem;">'+SEGMENT_LABELS[sel]+' szegmens</div>'
       +(segStatBadges?'<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem;">'+segStatBadges+'</div>':'')
       +buildSegmentHpSection(key,sel,s,pct,cls)
-      +buildSegmentCritTable(key,sel,s.crits||{},s.critOpen)
+      +buildSegmentCritTable(key,sel,s.crits||{},s.critOpen,ship)
       +'</div>';
   } else {
     panel='<p style="color:var(--dim);font-size:.8rem;text-align:center;margin-bottom:.6rem;">👆 Válassz egy szegmenst (a képen vagy a gombok közül) a hit/crit tábla megtekintéséhez</p>';
@@ -439,15 +455,16 @@ function buildSegmentHpSection(key,seg,s,pct,cls){
     +'<div class="hp-track"><div class="hp-fill '+cls+'" style="width:'+pct+'%"></div></div>'
     +'<div class="hp-ctrl"><button class="btn bd bsm seg-hp-adj" data-key="'+key+'" data-seg="'+seg+'" data-d="-1">−1 Sérülés</button><button class="btn bgr bsm seg-hp-adj" data-key="'+key+'" data-seg="'+seg+'" data-d="1">+1 Javítás</button></div></div>';
 }
-function buildSegmentCritTable(key,seg,crits,open){
+function buildSegmentCritTable(key,seg,crits,open,ship){
+  var table=getCritTableForShip(ship);
   var totalCrits=Object.values(crits).reduce(function(s,v){return s+v;},0);
   var header='<div style="display:flex;justify-content:space-between;align-items:center;margin:.4rem 0 .3rem;cursor:pointer;" class="seg-crit-toggle" data-key="'+key+'" data-seg="'+seg+'">'
     +'<span style="color:var(--gold);font-size:.82rem;font-weight:bold;">💥 Kritikus'+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.06rem .3rem;border-radius:3px;font-size:.68rem;">'+totalCrits+'</span>':'')+'</span>'
     +'<span style="color:var(--dim);font-size:.76rem;">'+(open?'▲':'▼')+'</span></div>';
   if(!open) return header;
-  var rows=CRITS.map(function(c){
-    var n=crits[c.roll]||0; var fires=''; for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';
-    return '<tr><td class="cr">'+c.roll+'</td><td class="cd">'+(c.dmg||'')+'</td><td><div class="cc"><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-roll="'+c.roll+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-roll="'+c.roll+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span></td><td><div class="fires">'+fires+'</div></td></tr>';
+  var rows=table.entries.map(function(c){
+    var n=crits[c.id]||0; var fires=''; for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';
+    return '<tr><td class="cr">'+esc(parseCritRolls(c.rolls).join(', '))+'</td><td class="cd">'+esc(c.dmg||'')+'</td><td><div class="cc"><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-entry="'+c.id+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb seg-ccb" data-key="'+key+'" data-seg="'+seg+'" data-entry="'+c.id+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span></td><td><div class="fires">'+fires+'</div></td></tr>';
   }).join('');
   return header+'<table class="crit-tbl"><thead><tr><th>2D6</th><th>+Dmg</th><th>Db</th><th>Eredmény</th><th>🔥</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
@@ -513,6 +530,7 @@ async function loadAll(){
   enabledPackages=await idbGetMigrated('bfg_enabled_packages',[]);
   rulebookEntries=await idbGetMigrated('bfg_rulebook',[]);
   pinnedRules=await idbGetMigrated('bfg_pinned_rules',[]);
+  critTables=await idbGetMigrated('bfg_crit_tables',[]);
 }
 // Re-read ships/commanders from IndexedDB without touching the active fleet/battle
 // state. Needed because the Developer page may have added/edited ships in a
@@ -551,6 +569,7 @@ function shipEntryPts(entry){
   if(entry.wargear&&ship.wargear) Object.entries(entry.wargear).forEach(function(kv){var wg=ship.wargear.find(function(w){return w.id===kv[0];});if(wg) pts+=wg.pts*kv[1];});
   if(entry.weapons&&ship.weapons) Object.entries(entry.weapons).forEach(function(kv){var wp=ship.weapons.find(function(w){return w.id===kv[0];});if(wp&&wp.optional) pts+=(wp.pts||0)*kv[1];});
   if(entry.weaponGroups&&ship.weaponGroups) ship.weaponGroups.forEach(function(g){
+    if(g.hasLimit===false) return; // unlimited groups are always-included, not "picked" — no per-selection cost
     var sel=entry.weaponGroups[g.id]||{};
     (g.weapons||[]).forEach(function(w){ var qty=sel[w.id]||0; pts+=(w.pts||0)*qty; });
   });
@@ -574,6 +593,7 @@ get('fleet-name-inp').addEventListener('input',function(){activeFleet().name=thi
 async function refreshPinnedRules(){
   rulebookEntries=await idbGetMigrated('bfg_rulebook',rulebookEntries);
   pinnedRules=await idbGetMigrated('bfg_pinned_rules',pinnedRules);
+  critTables=await idbGetMigrated('bfg_crit_tables',critTables);
 }
 
 // ---- NAV ----
@@ -759,9 +779,18 @@ function renderFleet(){
         });
       }
     }
-    // weapon groups (advanced) — shared-limit pool
+    // weapon groups (advanced) — shared-limit pool OR unlimited display-only grouping
     if(ship.weaponGroups&&ship.weaponGroups.length){
       ship.weaponGroups.forEach(function(g){
+        var hasLimit=g.hasLimit!==false;
+        if(!hasLimit){
+          // unlimited: every weapon in the group is always included, just shown under a shared heading
+          extrasHtml+='<div style="margin:.35rem 0 .2rem;padding-top:.3rem;border-top:1px dashed #333;font-size:.75rem;color:#a07aee;font-weight:bold;">🎯 '+esc(g.name)+'</div>';
+          (g.weapons||[]).forEach(function(w){
+            extrasHtml+='<div class="wg-row"><span style="color:#a07aee;font-size:.8rem;">🎯</span><span class="wg-lbl">'+esc(w.name)+'</span></div>';
+          });
+          return;
+        }
         var sel=(entry.weaponGroups||{})[g.id]||{};
         var groupTotal=0; Object.keys(sel).forEach(function(k){groupTotal+=sel[k];});
         (g.weapons||[]).forEach(function(w){ wgrpExtra+=(w.pts||0)*(sel[w.id]||0); });
@@ -1086,8 +1115,10 @@ function buildDisplayWeapons(ship, entry){
     else { add(w,1); } // browsing: list as an available option
   });
   if(ship.weaponGroups) ship.weaponGroups.forEach(function(g){
+    var hasLimit=g.hasLimit!==false;
     (g.weapons||[]).forEach(function(w){
-      if(entry){ var sel=(entry.weaponGroups||{})[g.id]||{}; add(w, sel[w.id]||0, {_groupName:g.name}); }
+      if(!hasLimit){ add(w, 1, {_groupName:g.name}); } // unlimited: always included, just grouped under a heading
+      else if(entry){ var sel=(entry.weaponGroups||{})[g.id]||{}; add(w, sel[w.id]||0, {_groupName:g.name}); }
       else { add(w, 1, {_groupName:g.name, _browsing:true}); }
     });
   });
@@ -1187,7 +1218,7 @@ function renderBattle(){
         +(isDread ? buildDreadnoughtDiagram(ship,entry,key,st) : buildHpSection(key,st,pct,cls))
         +buildLeadershipSection(key,st)
         +buildStatsSection(ship,entry)
-        +(isDread ? '' : buildCritTableCollapsible(key,st.crits||{},st.critOpen))
+        +(isDread ? '' : buildCritTableCollapsible(key,st.crits||{},st.critOpen,ship))
         +buildWeaponsSec(selectedWpns,key)+'</div></div>';
     }
   });
@@ -1217,12 +1248,12 @@ function renderBattle(){
     });
   });
   // Crits
-  el.querySelectorAll('.ccb').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var key=btn.dataset.key,roll=parseInt(btn.dataset.roll),dir=parseInt(btn.dataset.dir),st=battleState[key];if(!st)return;if(!st.crits)st.crits={};st.crits[roll]=Math.max(0,(st.crits[roll]||0)+dir);saveBattle();renderBattle();});});
+  el.querySelectorAll('.ccb').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var key=btn.dataset.key,entryId=btn.dataset.entry,dir=parseInt(btn.dataset.dir),st=battleState[key];if(!st)return;if(!st.crits)st.crits={};st.crits[entryId]=Math.max(0,(st.crits[entryId]||0)+dir);saveBattle();renderBattle();});});
   // Dreadnought segments: click the diagram or a chip to select/deselect that segment
   el.querySelectorAll('.dread-segment,.dread-segment-chip').forEach(function(elx){elx.addEventListener('click',function(e){e.stopPropagation();var key=elx.dataset.key,seg=elx.dataset.seg,st=battleState[key];if(!st)return;st.selectedSegment=(st.selectedSegment===seg)?null:seg;saveBattle();renderBattle();});});
   el.querySelectorAll('.seg-hp-adj').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var key=btn.dataset.key,seg=btn.dataset.seg,d=parseInt(btn.dataset.d),st=battleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];s.hp=Math.max(0,Math.min(s.maxHp,s.hp+d));saveBattle();renderBattle();});});
   el.querySelectorAll('.seg-crit-toggle').forEach(function(div){div.addEventListener('click',function(e){e.stopPropagation();var key=div.dataset.key,seg=div.dataset.seg,st=battleState[key];if(!st||!st.segments||!st.segments[seg])return;st.segments[seg].critOpen=!st.segments[seg].critOpen;saveBattle();renderBattle();});});
-  el.querySelectorAll('.seg-ccb').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var key=btn.dataset.key,seg=btn.dataset.seg,roll=parseInt(btn.dataset.roll),dir=parseInt(btn.dataset.dir),st=battleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];if(!s.crits)s.crits={};s.crits[roll]=Math.max(0,(s.crits[roll]||0)+dir);saveBattle();renderBattle();});});
+  el.querySelectorAll('.seg-ccb').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var key=btn.dataset.key,seg=btn.dataset.seg,entryId=btn.dataset.entry,dir=parseInt(btn.dataset.dir),st=battleState[key];if(!st||!st.segments||!st.segments[seg])return;var s=st.segments[seg];if(!s.crits)s.crits={};s.crits[entryId]=Math.max(0,(s.crits[entryId]||0)+dir);saveBattle();renderBattle();});});
   // Weapon fired/loaded toggle (reloadable weapons only)
   el.querySelectorAll('.wpn-status-btn').forEach(function(btn){btn.addEventListener('click',function(e){
     e.stopPropagation();
@@ -1261,14 +1292,15 @@ function buildStatsSection(ship,entry){
   return '<div style="margin-bottom:.75rem;">'+structuredHtml+(ship.stats?'<div style="background:var(--inp);border-radius:4px;padding:.55rem .75rem;font-size:.82rem;white-space:pre-wrap;color:var(--dim);">'+esc(ship.stats)+'</div>':'')+'</div>';
 }
 
-function buildCritTableCollapsible(key,crits,open){
+function buildCritTableCollapsible(key,crits,open,ship){
+  var table=getCritTableForShip(ship);
   var totalCrits=Object.values(crits).reduce(function(s,v){return s+v;},0);
   var header='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;cursor:pointer;" class="crit-toggle" data-key="'+key+'">'
-    +'<span style="color:var(--gold);font-size:.87rem;font-weight:bold;">💥 Kritikus Találatok'+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.08rem .32rem;border-radius:3px;font-size:.72rem;">'+totalCrits+'</span>':'')+'</span>'
+    +'<span style="color:var(--gold);font-size:.87rem;font-weight:bold;">💥 Kritikus Találatok'+(table.name?' <span style="color:var(--dim);font-weight:normal;font-size:.72rem;">('+esc(table.name)+')</span>':'')+(totalCrits>0?' <span style="background:var(--red);color:#fff;padding:.08rem .32rem;border-radius:3px;font-size:.72rem;">'+totalCrits+'</span>':'')+'</span>'
     +'<span style="color:var(--dim);font-size:.8rem;">'+(open?'▲ Összecsuk':'▼ Kibont')+'</span>'
     +'</div>';
   if(!open) return '<div style="margin-bottom:.75rem;">'+header+'</div>';
-  var rows=CRITS.map(function(c){var n=crits[c.roll]||0;var fires='';for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';return '<tr><td class="cr">'+c.roll+'</td><td class="cd">'+c.dmg+'</td><td><div class="cc"><button class="ccb" data-key="'+key+'" data-roll="'+c.roll+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb" data-key="'+key+'" data-roll="'+c.roll+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span><div style="font-size:.72rem;color:var(--dim);">'+esc(c.desc)+'</div></td><td><div class="fires">'+fires+'</div></td></tr>';}).join('');
+  var rows=table.entries.map(function(c){var n=crits[c.id]||0;var fires='';for(var i=0;i<n;i++)fires+='<span class="fire">🔥</span>';return '<tr><td class="cr">'+esc(parseCritRolls(c.rolls).join(', '))+'</td><td class="cd">'+esc(c.dmg||'')+'</td><td><div class="cc"><button class="ccb" data-key="'+key+'" data-entry="'+c.id+'" data-dir="-1">−</button><span class="ccn">'+n+'</span><button class="ccb" data-key="'+key+'" data-entry="'+c.id+'" data-dir="1">+</button></div></td><td><span class="crit-nm">'+esc(c.name)+'</span>'+(c.desc?'<div style="font-size:.72rem;color:var(--dim);">'+esc(c.desc)+'</div>':'')+'</td><td><div class="fires">'+fires+'</div></td></tr>';}).join('');
   return '<div style="margin-bottom:.75rem;">'+header+'<table class="crit-tbl"><thead><tr><th>2D6</th><th>+Dmg</th><th>Db</th><th>Eredmény</th><th>🔥</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
